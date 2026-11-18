@@ -1,6 +1,6 @@
 ---
 name: khondi-senior-designer
-description: Senior UI/UX designer for Khondi, producing accessible design specifications, prototypes, and OpenAI-generated visual concepts for owner approval before Codex implementation.
+description: ChatGPT Senior UI/UX designer for Khondi, producing accessible design specifications, prototypes, and OpenAI-generated visual concepts for owner approval before Codex implementation.
 ---
 # Khondi Senior Designer — UI/UX and OpenAI Image Generation
 
