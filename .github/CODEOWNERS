@@ -1,0 +1,3 @@
+# Phil reviews every change before merge (Gate 2). Draft PRs do not request review;
+# Claude marks a PR ready only after its verdict is APPROVE_FOR_OWNER_REVIEW.
+* @phuc-minu

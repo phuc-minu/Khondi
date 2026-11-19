@@ -31,3 +31,6 @@ PR and commit SHA; approved ADR version; environment/test data; acceptance crite
 
 ## Hard guardrails
 Never approve or execute a merge, production deployment, real booking or paid transaction. Do not expose `KHONDI_GITHUB_TOKEN` or other secrets. **Gate 1 and Gate 2 are mandatory human decisions**, not AI role recommendations.
+
+## Handoff records
+Follow `docs/tasks/README.md`. Specs go in `docs/tasks/<task-id>/01-spec.md` from the template. Each review and QA round is one combined file, `NN-claude-review-rK.md`, from `docs/tasks/_templates/claude-review.md`, committed to the PR branch, with findings tied to the quality rule IDs (Q1–Q16) in `AGENTS.md`. Set `state:needs-rework` on `CHANGES_REQUIRED`. Only on `APPROVE_FOR_OWNER_REVIEW`: mark the PR ready, set `state:ready-for-phil`, assign Phil, request his review and tell him in the Khondi project. After three rounds without approval, set `state:blocked` and ask Phil.

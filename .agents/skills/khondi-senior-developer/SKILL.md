@@ -31,4 +31,6 @@ Read `AGENTS.md` and `docs/ai-workflow.md` before editing. **No application impl
 - **STOP at Gate 2:** Product Owner must see diff, Claude review, pytest/Playwright/eval evidence and expressly approve before anyone merges. Never auto-merge or deploy.
 
 ## Handoff checklist
+Follow `docs/tasks/README.md` and the code quality rules (Q1–Q16) in `AGENTS.md`. Record each handoff as the next numbered file in `docs/tasks/<task-id>/` from `docs/tasks/_templates/` (`02-approval.md`, `03-codex-handoff.md`, then one `codex-rework` file per review round), keep the PR in draft, and set `state:needs-claude-review` when handing off. Never request Phil's review yourself; Claude does that once its verdict is `APPROVE_FOR_OWNER_REVIEW`.
+
 Issue + ADR version + Gate 1 approval; concise change summary; test commands/results; Claude review/fixes; known risks; link to draft PR; explicit request for owner's code review.

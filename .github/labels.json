@@ -1,0 +1,8 @@
+[
+  {"name": "state:awaiting-plan-approval", "color": "fbca04", "description": "Spec PR open; Phil's turn (Gate 1)"},
+  {"name": "state:in-progress", "color": "1d76db", "description": "Codex is implementing"},
+  {"name": "state:needs-claude-review", "color": "5319e7", "description": "Codex handed off; Claude's turn for review and QA"},
+  {"name": "state:needs-rework", "color": "d93f0b", "description": "Claude found blocking issues; Codex's turn"},
+  {"name": "state:ready-for-phil", "color": "0e8a16", "description": "Claude approved for owner review; Phil's turn (Gate 2)"},
+  {"name": "state:blocked", "color": "b60205", "description": "Waiting on a decision; reason in the latest handoff file"}
+]
