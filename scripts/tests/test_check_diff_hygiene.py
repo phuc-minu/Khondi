@@ -7,7 +7,13 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from check_diff_hygiene import check_line, missing_handoff, parse_added_lines
+from check_diff_hygiene import (
+    check_line,
+    missing_handoff,
+    parse_added_lines,
+    parse_name_status,
+    rewritten_handoffs,
+)
 
 
 def rule_ids(path: str, text: str) -> list[str]:
@@ -81,12 +87,30 @@ def test_parse_added_lines_tracks_paths_and_line_numbers() -> None:
     ]
 
 
+HANDOFF = "docs/tasks/T0001-trip-intake/03-codex-handoff.md"
+
+
 def test_code_change_requires_handoff_file() -> None:
-    assert missing_handoff(["backend/app/main.py"])
-    assert not missing_handoff(
-        ["backend/app/main.py", "docs/tasks/T0001-trip-intake/03-codex-handoff.md"]
-    )
+    assert missing_handoff([("M", "backend/app/main.py")])
+    assert not missing_handoff([("M", "backend/app/main.py"), ("A", HANDOFF)])
+
+
+@pytest.mark.parametrize("status", ["M", "D"])
+def test_edited_or_deleted_handoff_does_not_count(status: str) -> None:
+    changes = [("M", "backend/app/main.py"), (status, HANDOFF)]
+    assert missing_handoff(changes)
+    assert rewritten_handoffs(changes) == [HANDOFF]
+
+
+def test_new_handoff_is_not_a_rewrite() -> None:
+    assert rewritten_handoffs([("A", HANDOFF), ("M", "docs/tasks/INDEX.md")]) == []
 
 
 def test_docs_only_change_needs_no_handoff_file() -> None:
-    assert not missing_handoff(["AGENTS.md", "docs/tasks/README.md", ".github/labels.json"])
+    changes = [("M", "AGENTS.md"), ("M", "docs/tasks/README.md"), ("A", ".github/labels.json")]
+    assert not missing_handoff(changes)
+
+
+def test_parse_name_status() -> None:
+    output = "M\tbackend/app.py\nD\t" + HANDOFF + "\n"
+    assert parse_name_status(output) == [("M", "backend/app.py"), ("D", HANDOFF)]

@@ -131,12 +131,30 @@ def parse_added_lines(diff: str) -> list[tuple[str, int, str]]:
     return added
 
 
-def missing_handoff(changed_paths: list[str]) -> bool:
-    """True when code changed but no task handoff file was added or updated."""
+Change = tuple[str, str]  # (git name-status letter, path)
+
+
+def missing_handoff(changes: list[Change]) -> bool:
+    """True when code changed but no new task handoff file was added."""
     touches_code = any(
-        not p.startswith(NON_CODE_PREFIXES) and p not in NON_CODE_FILES for p in changed_paths
+        not p.startswith(NON_CODE_PREFIXES) and p not in NON_CODE_FILES for _, p in changes
     )
-    return touches_code and not any(TASK_FILE.match(p) for p in changed_paths)
+    added_handoff = any(status == "A" and TASK_FILE.match(p) for status, p in changes)
+    return touches_code and not added_handoff
+
+
+def rewritten_handoffs(changes: list[Change]) -> list[str]:
+    """Earlier handoff files that were edited or deleted, which breaks append-only."""
+    return [p for status, p in changes if status != "A" and TASK_FILE.match(p)]
+
+
+def parse_name_status(output: str) -> list[Change]:
+    changes: list[Change] = []
+    for line in output.splitlines():
+        if line:
+            status, path = line.split("\t", 1)
+            changes.append((status[0], path))
+    return changes
 
 
 def git(*args: str) -> str:
@@ -149,20 +167,24 @@ def main(argv: list[str]) -> int:
         return 2
     base = argv[1]
     diff = git("diff", "--unified=0", "--no-color", f"{base}...HEAD")
-    changed = [p for p in git("diff", "--name-only", f"{base}...HEAD").splitlines() if p]
+    changes = parse_name_status(git("diff", "--name-status", "--no-renames", f"{base}...HEAD"))
 
     violations = [v for path, n, text in parse_added_lines(diff) for v in check_line(path, n, text)]
     for violation in violations:
         sys.stdout.write(f"{violation}\n")
 
-    handoff_missing = missing_handoff(changed)
+    rewritten = rewritten_handoffs(changes)
+    for path in rewritten:
+        sys.stdout.write(f"{path}: handoff files are append-only; add a new file instead.\n")
+
+    handoff_missing = missing_handoff(changes)
     if handoff_missing:
         sys.stdout.write(
             "Code changed but no handoff file under docs/tasks/T####-<slug>/ was added. "
             "See docs/tasks/README.md.\n"
         )
 
-    if violations or handoff_missing:
+    if violations or rewritten or handoff_missing:
         sys.stdout.write("\nSee 'Code quality rules' in AGENTS.md.\n")
         return 1
     sys.stdout.write("Diff hygiene: no violations.\n")
