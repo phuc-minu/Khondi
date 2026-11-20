@@ -37,9 +37,7 @@ async def check_postgres() -> None:
 
 async def check_redis() -> None:
     settings = get_settings()
-    client = Redis.from_url(
-        str(settings.redis_dsn), socket_connect_timeout=2
-    )
+    client = Redis.from_url(str(settings.redis_dsn), socket_connect_timeout=2)
     try:
         await client.ping()
     finally:
@@ -59,9 +57,7 @@ async def readyz(response: Response) -> dict[str, object]:
     return {"status": "ready"}
 
 
-async def dependency_check(
-    name: str, check: Callable[[], Awaitable[None]]
-) -> tuple[str, bool]:
+async def dependency_check(name: str, check: Callable[[], Awaitable[None]]) -> tuple[str, bool]:
     try:
         await asyncio.wait_for(check(), timeout=DEPENDENCY_TIMEOUT_SECONDS)
     except (OSError, asyncio.TimeoutError, PostgresError, RedisConnectionError, RedisTimeoutError):

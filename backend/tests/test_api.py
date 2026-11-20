@@ -108,9 +108,7 @@ def test_dependency_check_times_out_when_server_never_answers(
 ) -> None:
     writers: list[asyncio.StreamWriter] = []
 
-    async def never_answers(
-        _reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
+    async def never_answers(_reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         writers.append(writer)
         await asyncio.Event().wait()
 
