@@ -37,9 +37,7 @@ async def check_postgres() -> None:
 
 async def check_redis() -> None:
     settings = get_settings()
-    client = Redis.from_url(
-        str(settings.redis_dsn), socket_connect_timeout=2
-    )
+    client = Redis.from_url(str(settings.redis_dsn), socket_connect_timeout=2)
     try:
         await client.ping()
     finally:
