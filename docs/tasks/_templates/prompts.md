@@ -26,3 +26,11 @@ Read the latest claude-review file in docs/tasks/T0000-<slug>/ and fix every blo
 Answer every finding by ID in the next numbered codex-rework file, paste real command output,
 update docs/tasks/INDEX.md and set the label state:needs-claude-review.
 ```
+
+## Phil/operator → ChatGPT Product Manager: resolve product handoff
+```text
+Review the pending Khondi product handoff in phuc-minu/Khondi, issue #<n>, task T0000-<slug>.
+Read AGENTS.md, docs/tasks/README.md, the linked issue and all existing numbered handoff files, especially NN-product-review.md (or the linked issue comment), and the applicable PRD/ADR revision.
+Identify the product decision, user stories, priority and acceptance-criteria changes; distinguish recommendations from my approval. Record a concise response as a source-linked GitHub issue comment, or a new append-only NN-product-response.md on the task branch if appropriate; update the task index with any new file.
+Ask Claude to reconcile your recommendation into a proposed spec/ADR revision and stop at Gate 1 if scope changed. Do not instruct Codex to implement changed scope or merge anything automatically.
+```
