@@ -6,8 +6,8 @@ import asyncpg
 import pytest
 from fastapi import Response
 from fastapi.testclient import TestClient
-from redis.asyncio import Redis
 from pydantic import SecretStr
+from redis.asyncio import Redis
 
 from khondi_api import main
 from khondi_api.main import app, dependency_check
@@ -24,7 +24,7 @@ def test_invalid_database_url_traceback_does_not_include_secret() -> None:
     settings = Settings(
         ENVIRONMENT="ci",
         DATABASE_URL=SecretStr("notaurl-SUPERSECRET"),
-        REDIS_URL="redis://localhost:6379/0",
+        REDIS_URL=SecretStr("redis://localhost:6379/0"),
     )
 
     try:
