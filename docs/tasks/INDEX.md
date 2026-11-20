@@ -6,6 +6,6 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | --- | --- | --- | --- | --- | --- |
 | [T0001](T0001-handoff-workflow/) | Claude–Codex handoff workflow | merged | (requested directly by Phil) | #48 | `01-spec.md` |
 | [T0002](T0002-local-infra-azure-parity/) | Local dev infrastructure that can be duplicated in Azure | merged | #49 | (T0003–T0009) | `01-spec.md` |
-| [T0003](T0003-service-skeletons-config/) | Service skeletons and configuration | needs-claude-review | #50 (covered by T0002 approval) | #52 | `07-codex-rework-r2.md` |
+| [T0003](T0003-service-skeletons-config/) | Service skeletons and configuration | needs-rework | #50 (covered by T0002 approval) | #52 | `08-claude-review-r3.md` |
 
 States: `awaiting-plan-approval`, `in-progress`, `needs-claude-review`, `needs-rework`, `ready-for-phil`, `blocked`, `merged`, `cancelled`.
