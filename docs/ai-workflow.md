@@ -35,6 +35,9 @@ Record approval in a durable issue/PR comment or review with approver, timestamp
 ## Implementation and review
 Codex works only from approved scope, makes small focused commits and draft PRs, links approved ADR and issue, and provides test commands/results. Never mark nonexistent test runs as passed. Claude reviews independently for correctness, evidence grounding, budget/date/route verification, authentication, secret handling, accessibility, and test sufficiency. Codex repairs issues; Claude re-reviews substantive updates. **Claude Senior QA** validates the exact PR commit with Playwright, pytest, integration and replay eval evidence, and reports blocked/failed suites explicitly. Senior Designer reviews implemented UI fidelity and accessibility. Codex DevOps validates approved infrastructure changes with IaC static checks, safe non-applying Azure what-if/plan, Docker health checks, security scan and documented cost impact; **Azure apply and deployments need separate explicit human approval**.
 
+## Handoff records and quality rules
+The concrete handoff steps, labels, file templates and audit folders are in [docs/tasks/README.md](tasks/README.md). The code quality rules (Q1–Q16) are in [AGENTS.md](../AGENTS.md). Claude's review verdict is recorded in the task folder; the Product Owner is asked to review a PR only after that verdict is `APPROVE_FOR_OWNER_REVIEW`.
+
 ## Gate 2: Product Owner code/PR review
 Deliver before requesting approval:
 - Draft PR link, linked issue and exact approved ADR version.

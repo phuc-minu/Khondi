@@ -1,0 +1,12 @@
+# Repository-wide lint baseline (AGENTS.md Q8, Q14, Q16). App packages may add rules, never remove them.
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "ANN", "BLE", "T20", "ERA", "S"]
+
+[lint.per-file-ignores]
+# Tests use plain asserts.
+"**/tests/**" = ["S101"]
+# The hygiene checker runs git with fixed arguments.
+"scripts/check_diff_hygiene.py" = ["S603", "S607"]

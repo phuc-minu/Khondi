@@ -1,0 +1,140 @@
+name: Quality gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.apps.outputs.backend }}
+      frontend: ${{ steps.apps.outputs.frontend }}
+      e2e: ${{ steps.apps.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: apps
+        run: |
+          echo "backend=$([ -f backend/pyproject.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$([ -f frontend/package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "e2e=$([ -f frontend/playwright.config.ts ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  diff-hygiene:
+    # Blocks added lines that break Q4, Q6, Q8, Q9, Q14, and code changes without a handoff file.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/check_diff_hygiene.py "origin/${{ github.base_ref }}"
+
+  repo-tooling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ruff==0.16.9" "mypy==2.3.1" "pytest==9.1.1"
+      - run: ruff check scripts
+      - run: ruff format --check scripts
+      - run: mypy --strict scripts
+      - run: pytest -q scripts/tests
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  backend:
+    # Runs once backend/pyproject.toml exists. The backend must provide ruff, mypy, pytest
+    # and pytest-cov as dev dependencies managed by uv.
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: khondi
+          POSTGRES_PASSWORD: khondi
+          POSTGRES_DB: khondi_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U khondi" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://khondi:khondi@localhost:5432/khondi_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy --strict .
+      - run: uv run pytest --cov --cov-fail-under=85
+
+  frontend:
+    # Runs once frontend/package.json exists. The frontend must define the
+    # lint, typecheck and test npm scripts (test runs Vitest once, not in watch mode).
+    needs: detect
+    if: needs.detect.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint -- --max-warnings=0
+      - run: npm run typecheck
+      - run: npm test
+
+  e2e:
+    # Runs once frontend/playwright.config.ts exists. Uses recorded AI and provider responses.
+    needs: [detect, frontend]
+    if: needs.detect.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report

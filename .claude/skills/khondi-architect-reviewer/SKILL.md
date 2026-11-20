@@ -26,3 +26,6 @@ Read `AGENTS.md` and `docs/ai-workflow.md` before any architecture or review tas
 
 ## Reviewer output format
 `Verdict: APPROVE_FOR_OWNER_REVIEW | CHANGES_REQUIRED | BLOCKED` (never claim this is Product Owner approval), then evidence, findings by severity, test status, ADR conformity, and owner decision request.
+
+## Handoff records
+Follow `docs/tasks/README.md`. Specs go in `docs/tasks/<task-id>/01-spec.md` from the template. Each review and QA round is one combined file, `NN-claude-review-rK.md`, from `docs/tasks/_templates/claude-review.md`, committed to the PR branch, with findings tied to the quality rule IDs (Q1–Q16) in `AGENTS.md`. Set `state:needs-rework` on `CHANGES_REQUIRED`. Only on `APPROVE_FOR_OWNER_REVIEW`: mark the PR ready, set `state:ready-for-phil`, assign Phil, request his review and tell him in the Khondi project. After three rounds without approval, set `state:blocked` and ask Phil.
