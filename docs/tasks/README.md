@@ -4,6 +4,18 @@ Every piece of work in Khondi is a **task**. Product questions can be handed to 
 
 GitHub labels show **whose turn it is right now**. The task folder shows **everything that happened**. Neither agent remembers anything between sessions, so the folder is also how each agent picks up where the last one stopped.
 
+## Temporary owner-delegated website exception (2026-11-20)
+
+The Product Owner expressly requested: **“remove my review for now and let Claude and Codex create site for me.”** This grants a **narrow, revocable delegation** for [website epic #53](https://github.com/phuc-minu/Khondi/issues/53) and child issues #54–#60 **only**: static/responsive public landing, About, illustrative $3,000 New Orleans trip, demo budget/destination UX, shared front-end components and their tests.
+
+- **Planning:** ChatGPT Product Manager requirements and preferred visual direction are already documented in #53–#60. Claude Architect (with UI designer input where available) may finalize a versioned website spec/implementation plan, decide non-material design details, and hand approved in-scope plans directly to Codex **without a fresh owner Gate 1 review**. Include a handoff record linking this delegated authorization; do not falsely label a spec PR as directly reviewed by the owner.
+- **Implementation and review:** Codex may implement the bounded website scope in small draft PRs. Claude must independently review scope, security, UX/accessibility and code; Claude QA must run relevant real CI, tests and Playwright on the exact head SHA, with failure evidence and rework as needed. Senior Designer fidelity review where available. A GitHub Codex bot review **is not a substitute** for Claude review.
+- **Merge:** For PRs affecting only this delegated website scope, Claude may mark ready and arrange a merge **after its own explicit passing review/QA verdict** and successful required checks, without requesting a fresh owner Gate 2 review. Record a handoff and merge authorization tied to the final commit; protect against stale checks. No merge when blocking issues remain.
+- **Hard boundary:** No authorization for unrelated backend or infrastructure work, deployments, Azure provisioning/charges, secrets/credentials, external provider credentials, authentication/PII handling, payment/booking, destructive actions, broad architecture changes, or materially expanded product scope. Those still need the owner's normal approvals, plus separate authorization for deployment/provisioning. If uncertain, stop and ask.
+- **Execution:** This is a recorded permission, not a running Claude/Codex job. The operator still needs to start agents through a supported integration; GitHub issue comments/labels do not auto-start sessions. Owner may revoke delegation at any time.
+
+Outside this listed website scope, the normal Gate 1 and Gate 2 rules below continue unchanged.
+
 ## Who does what
 
 | Step | Who | Writes | Then |
