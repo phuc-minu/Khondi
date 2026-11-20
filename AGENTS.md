@@ -24,6 +24,9 @@ Every task follows [docs/tasks/README.md](docs/tasks/README.md). In short:
 
 Every handoff is a numbered, dated, append-only Markdown file in the task folder, committed on the task branch, using the templates in [docs/tasks/_templates](docs/tasks/_templates). Never edit an earlier handoff file. Keep [docs/tasks/INDEX.md](docs/tasks/INDEX.md) current in the same commit.
 
+## Product Manager routing
+When Claude or Codex identifies a genuine product-scope, acceptance-criteria or priority question, follow [the ChatGPT Product Manager handoff](docs/tasks/README.md#chatgpt-product-manager-handoff-optional-blocking-when-requested). Use a source-linked issue comment or a new append-only `NN-product-review.md`, label the **issue** `state:needs-product-review`, and have the owner or current operator initiate ChatGPT review manually. ChatGPT's answer is advisory, not a Gate 1 or Gate 2 approval. Codex pauses affected work until Claude's revised plan receives the necessary owner approval. Preserve the implementation PR's existing state and never treat a label as agent execution.
+
 ## Code quality rules
 These apply to every line Codex writes and are what Claude reviews against. Cite the rule ID when raising or answering a finding. A rule can only be broken with a written reason in the handoff file, and Claude decides whether the reason holds.
 
