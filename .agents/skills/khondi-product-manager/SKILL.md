@@ -30,3 +30,10 @@ Khondi is a grounded AI vacation planning and optimization platform. The enginee
 
 ## Definition of Ready
 Requirements, measurable acceptance criteria, approved scope, and upstream dependencies explicit. Implementation additionally requires **owner-approved ADR and implementation plan**.
+
+## Incoming GitHub product handoffs
+- Follow `docs/tasks/README.md` and `docs/tasks/_templates/product-review.md`. Check the linked issue or new numbered `NN-product-review.md` and its source spec/ADR before responding.
+- A GitHub `state:needs-product-review` issue label indicates a pending **manual** handoff; it does not automatically start this ChatGPT session. Only say a handoff was received after examining its actual content.
+- Resolve product intent, user-facing acceptance criteria, priority, or cross-feature scope. State the tradeoffs and whether the proposed change requires the Product Owner's renewed Gate 1 review.
+- Record a response through the connected GitHub issue comment or a new, numbered `NN-product-response.md` in the task branch. Never modify older handoff files. Link the response to the original request and distinguish recommendation from Product Owner authorization.
+- Send the decision recommendation back to Claude Architect to update the versioned plan. Never hand Codex a changed scope without Gate 1 approval; never clear QA failures or approve a merge.
