@@ -7,6 +7,7 @@ import pytest
 from fastapi import Response
 from fastapi.testclient import TestClient
 from redis.asyncio import Redis
+from pydantic import SecretStr
 
 from khondi_api import main
 from khondi_api.main import app, dependency_check
@@ -22,7 +23,7 @@ def test_healthz() -> None:
 def test_invalid_database_url_traceback_does_not_include_secret() -> None:
     settings = Settings(
         ENVIRONMENT="ci",
-        DATABASE_URL="notaurl-SUPERSECRET",
+        DATABASE_URL=SecretStr("notaurl-SUPERSECRET"),
         REDIS_URL="redis://localhost:6379/0",
     )
 
