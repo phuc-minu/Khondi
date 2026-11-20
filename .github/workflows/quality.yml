@@ -85,6 +85,8 @@ jobs:
           --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://khondi:khondi@localhost:5432/khondi_test
+      REDIS_URL: redis://localhost:6379/0
+      ENVIRONMENT: ci
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

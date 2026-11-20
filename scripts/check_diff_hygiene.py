@@ -74,6 +74,12 @@ RULES: tuple[Rule, ...] = (
     ),
     Rule("Q14", "print in code", re.compile(r"^\s*print\("), PY),
     Rule("Q14", "console logging", re.compile(r"\bconsole\.(log|debug|info)\("), TS),
+    Rule(
+        "P3/P10",
+        "backing-service host literal or credential URL",
+        re.compile(r"(?:localhost|127\.0\.0\.1|postgres:|redis:|://[^\s/:]+:[^\s/@]+@)"),
+        CODE,
+    ),
 )
 
 

@@ -41,6 +41,8 @@ def rule_ids(path: str, text: str) -> list[str]:
         ("backend/tests/test_x.py", "@pytest.mark.skip(reason='flaky')", ["Q9"]),
         ("backend/app/x.py", "print('debug')", ["Q14"]),
         ("frontend/src/a.ts", "console.log(state)", ["Q14"]),
+        ("backend/app/x.py", "url = 'postgres://db'", ["P3/P10"]),
+        ("frontend/src/a.ts", "url = 'https://user:password@example'", ["P3/P10"]),
     ],
 )
 def test_flags_rule_breaks(path: str, text: str, expected: list[str]) -> None:
@@ -57,6 +59,7 @@ def test_flags_rule_breaks(path: str, text: str, expected: list[str]) -> None:
         ("frontend/src/a.ts", "// eslint-disable-next-line no-console -- CLI entry point"),
         ("frontend/src/a.ts", "const company = 'anything'"),
         ("frontend/src/a.ts", "console.error(err)"),
+        (".env.example", "DATABASE_URL=postgresql://user:password@localhost/db"),
         ("docs/notes.md", "TODO: write intro"),
         ("scripts/check_diff_hygiene.py", "TODO"),
     ],
