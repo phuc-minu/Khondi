@@ -19,7 +19,7 @@ TS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
 CODE = PY + TS
 
 # Paths whose purpose is to talk about these patterns.
-EXEMPT_PREFIXES = ("scripts/check_diff_hygiene.py", "scripts/tests/")
+EXEMPT_PREFIXES = ("scripts/check_diff_hygiene.py", "scripts/tests/", "backend/tests/", "frontend/tests/")
 
 TASK_FILE = re.compile(r"^docs/tasks/T\d{4}-[a-z0-9-]+/\d{2}-[a-z0-9-]+\.md$")
 NON_CODE_PREFIXES = ("docs/", ".github/", ".agents/", ".claude/")

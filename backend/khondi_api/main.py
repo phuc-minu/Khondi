@@ -1,7 +1,12 @@
 import asyncio
+from collections.abc import Awaitable, Callable
+
 import asyncpg
+from asyncpg import PostgresError
 from fastapi import FastAPI, Response, status
 from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from khondi_api.connections import postgres_options, redis_options
 from khondi_api.settings import get_settings
@@ -12,6 +17,13 @@ app = FastAPI()
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def load_settings() -> None:
+    settings = get_settings()
+    settings.database_dsn
+    settings.redis_dsn
 
 
 async def check_postgres() -> None:
@@ -35,9 +47,20 @@ async def check_redis() -> None:
 
 @app.get("/readyz")
 async def readyz(response: Response) -> dict[str, object]:
-    checks = await asyncio.gather(check_postgres(), check_redis(), return_exceptions=True)
-    failed = [name for name, result in zip(("postgres", "redis"), checks) if isinstance(result, Exception)]
+    checks = await asyncio.gather(
+        dependency_check("postgres", check_postgres),
+        dependency_check("redis", check_redis),
+    )
+    failed = [name for name, ok in checks if not ok]
     if failed:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "not_ready", "failed": failed}
     return {"status": "ready"}
+
+
+async def dependency_check(name: str, check: Callable[[], Awaitable[None]]) -> tuple[str, bool]:
+    try:
+        await check()
+    except (OSError, asyncio.TimeoutError, PostgresError, RedisConnectionError, RedisTimeoutError):
+        return name, False
+    return name, True

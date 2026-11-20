@@ -83,6 +83,12 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U khondi" --health-interval 5s
           --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7.4
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://khondi:khondi@localhost:5432/khondi_test
       REDIS_URL: redis://localhost:6379/0
@@ -105,6 +111,9 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      ENVIRONMENT: ci
+      API_BASE_URL: http://api:8000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -116,6 +125,27 @@ jobs:
       - run: npm run lint -- --max-warnings=0
       - run: npm run typecheck
       - run: npm test
+
+  images:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build --platform linux/amd64 -t khondi-api backend
+      - run: docker build --platform linux/amd64 -t khondi-web frontend
+      - run: |
+          docker run -d --name khondi-api -p 8000:8000 \
+            -e ENVIRONMENT=ci \
+            -e DATABASE_URL=postgresql://khondi:khondi@postgres:5432/khondi \
+            -e REDIS_URL=redis://redis:6379/0 khondi-api
+          test "$(docker inspect -f '{{.Config.User}}' khondi-api)" = "10001"
+          curl --fail http://127.0.0.1:8000/healthz
+      - run: |
+          docker run -d --name khondi-web -p 3000:3000 \
+            -e ENVIRONMENT=ci -e API_BASE_URL=http://api:8000 khondi-web
+          test "$(docker inspect -f '{{.Config.User}}' khondi-web)" = "10001"
+          curl --fail http://127.0.0.1:3000/api/healthz
 
   e2e:
     # Runs once frontend/playwright.config.ts exists. Uses recorded AI and provider responses.

@@ -12,4 +12,4 @@ def postgres_options(url: PostgresDsn) -> dict[str, Any]:
 
 
 def redis_options(url: RedisDsn) -> dict[str, Any]:
-    return {"ssl": str(url).startswith("rediss://")}
+    return {}
