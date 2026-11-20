@@ -19,7 +19,7 @@ TS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
 CODE = PY + TS
 
 # Paths whose purpose is to talk about these patterns.
-EXEMPT_PREFIXES = ("scripts/check_diff_hygiene.py", "scripts/tests/", "backend/tests/", "frontend/tests/")
+EXEMPT_PREFIXES = ("scripts/check_diff_hygiene.py", "scripts/tests/")
 
 TASK_FILE = re.compile(r"^docs/tasks/T\d{4}-[a-z0-9-]+/\d{2}-[a-z0-9-]+\.md$")
 NON_CODE_PREFIXES = ("docs/", ".github/", ".agents/", ".claude/")
@@ -32,6 +32,7 @@ class Rule:
     message: str
     pattern: re.Pattern[str]
     suffixes: tuple[str, ...]
+    exempt_prefixes: tuple[str, ...] = ()
 
 
 RULES: tuple[Rule, ...] = (
@@ -79,6 +80,7 @@ RULES: tuple[Rule, ...] = (
         "backing-service host literal or credential URL",
         re.compile(r"(?:localhost|127\.0\.0\.1|postgres:|redis:|://[^\s/:]+:[^\s/@]+@)"),
         CODE,
+        ("backend/tests/", "frontend/tests/"),
     ),
 )
 
@@ -100,13 +102,14 @@ def is_exempt(path: str) -> bool:
 
 
 def check_line(path: str, line_no: int, text: str) -> list[Violation]:
-    if is_exempt(path):
-        return []
     suffix = PurePosixPath(path).suffix
     return [
         Violation(path, line_no, rule, text)
         for rule in RULES
-        if suffix in rule.suffixes and rule.pattern.search(text)
+        if suffix in rule.suffixes
+        and not is_exempt(path)
+        and not path.startswith(rule.exempt_prefixes)
+        and rule.pattern.search(text)
     ]
 
 

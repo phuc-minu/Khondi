@@ -1,4 +1,6 @@
 import asyncio
+import sys
+import traceback
 
 import asyncpg
 import pytest
@@ -8,12 +10,30 @@ from redis.asyncio import Redis
 
 from khondi_api import main
 from khondi_api.main import app, dependency_check
+from khondi_api.settings import Settings, get_settings
 
 
 def test_healthz() -> None:
     response = TestClient(app).get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_invalid_database_url_traceback_does_not_include_secret() -> None:
+    settings = Settings(
+        ENVIRONMENT="ci",
+        DATABASE_URL="notaurl-SUPERSECRET",
+        REDIS_URL="redis://localhost:6379/0",
+    )
+
+    try:
+        settings.database_dsn
+    except ValueError:
+        formatted = "".join(traceback.format_exception(*sys.exc_info()))
+    else:
+        pytest.fail("invalid database URL was accepted")
+
+    assert "SUPERSECRET" not in formatted
 
 
 def test_dependency_check_reports_connection_failure() -> None:
@@ -80,3 +100,31 @@ def test_connection_checks_close_clients(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(Redis, "from_url", from_url)
     asyncio.run(main.check_postgres())
     asyncio.run(main.check_redis())
+
+
+@pytest.mark.integration
+def test_readyz_uses_ci_services(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "ci")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://khondi:khondi@localhost:5432/khondi_test")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    get_settings.cache_clear()
+
+    response = TestClient(app).get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+    get_settings.cache_clear()
+
+
+@pytest.mark.integration
+def test_readyz_names_unreachable_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ENVIRONMENT", "ci")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://khondi:khondi@localhost:59999/khondi_test")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:59998/0")
+    get_settings.cache_clear()
+
+    response = TestClient(app).get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "not_ready", "failed": ["postgres", "redis"]}
+    get_settings.cache_clear()

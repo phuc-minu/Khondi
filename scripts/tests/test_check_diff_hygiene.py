@@ -39,6 +39,7 @@ def rule_ids(path: str, text: str) -> list[str]:
         ("frontend/src/a.test.ts", "it.only('x', () => {})", ["Q9"]),
         ("frontend/src/a.test.ts", "describe.skip('x', () => {})", ["Q9"]),
         ("backend/tests/test_x.py", "@pytest.mark.skip(reason='flaky')", ["Q9"]),
+        ("backend/tests/test_x.py", "url = 'postgres://db'", []),
         ("backend/app/x.py", "print('debug')", ["Q14"]),
         ("frontend/src/a.ts", "console.log(state)", ["Q14"]),
         ("backend/app/x.py", "url = 'postgres://db'", ["P3/P10"]),

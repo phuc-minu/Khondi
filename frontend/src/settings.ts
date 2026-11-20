@@ -17,9 +17,7 @@ export function loadSettings(): Settings {
     });
   } catch (error) {
     const issue = error instanceof z.ZodError ? error.issues[0] : undefined;
-    const variable = issue?.path[0] ?? "configuration";
+    const variable = issue?.path[0] === undefined ? "configuration" : String(issue.path[0]);
     throw new Error(`${variable} is missing or invalid`);
   }
 }
-
-export const settings = loadSettings();

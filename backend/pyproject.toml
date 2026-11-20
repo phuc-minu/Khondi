@@ -26,3 +26,4 @@ strict = true
 
 [tool.pytest.ini_options]
 addopts = "--cov=khondi_api --cov-fail-under=85"
+markers = ["integration: needs the real PostgreSQL and Redis services from the CI backend job"]

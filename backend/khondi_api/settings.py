@@ -17,15 +17,15 @@ class Settings(BaseSettings):
     def database_dsn(self) -> PostgresDsn:
         try:
             return PostgresDsn(self.DATABASE_URL.get_secret_value())
-        except ValueError as exc:
-            raise ValueError("DATABASE_URL must be a valid PostgreSQL URL") from exc
+        except ValueError:
+            raise ValueError("DATABASE_URL must be a valid PostgreSQL URL") from None
 
     @property
     def redis_dsn(self) -> RedisDsn:
         try:
             return RedisDsn(self.REDIS_URL.get_secret_value())
-        except ValueError as exc:
-            raise ValueError("REDIS_URL must be a valid Redis URL") from exc
+        except ValueError:
+            raise ValueError("REDIS_URL must be a valid Redis URL") from None
 
 
 @lru_cache(maxsize=1)
