@@ -1,15 +1,15 @@
-from typing import Any
+from typing import TypedDict
 from urllib.parse import parse_qs
 
-from pydantic import PostgresDsn, RedisDsn
+from pydantic import PostgresDsn
 
 
-def postgres_options(url: PostgresDsn) -> dict[str, Any]:
-    options: dict[str, Any] = {}
+class PostgresOptions(TypedDict, total=False):
+    ssl: bool
+
+
+def postgres_options(url: PostgresDsn) -> PostgresOptions:
+    options: PostgresOptions = {}
     if parse_qs(str(url).split("?", 1)[-1]).get("sslmode") == ["require"]:
         options["ssl"] = True
     return options
-
-
-def redis_options(url: RedisDsn) -> dict[str, Any]:
-    return {}

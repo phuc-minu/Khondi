@@ -103,6 +103,32 @@ def test_connection_checks_close_clients(monkeypatch: pytest.MonkeyPatch) -> Non
     asyncio.run(main.check_redis())
 
 
+def test_dependency_check_times_out_when_server_never_answers(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def never_answers(_reader: asyncio.StreamReader, _writer: asyncio.StreamWriter) -> None:
+        await asyncio.Event().wait()
+
+    async def run() -> None:
+        server = await asyncio.start_server(never_answers, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        monkeypatch.setenv("ENVIRONMENT", "ci")
+        monkeypatch.setenv("DATABASE_URL", f"postgresql://khondi:khondi@127.0.0.1:{port}/khondi_test")
+        monkeypatch.setenv("REDIS_URL", f"redis://127.0.0.1:{port}/0")
+        get_settings.cache_clear()
+        try:
+            for name, check in (("postgres", main.check_postgres), ("redis", main.check_redis)):
+                started = asyncio.get_running_loop().time()
+                result = await asyncio.wait_for(dependency_check(name, check), timeout=5)
+                elapsed = asyncio.get_running_loop().time() - started
+                assert result == (name, False)
+                assert elapsed < 3
+        finally:
+            server.close()
+            await server.wait_closed()
+            get_settings.cache_clear()
+
+    asyncio.run(run())
+
+
 @pytest.mark.integration
 def test_readyz_uses_ci_services(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "ci")
