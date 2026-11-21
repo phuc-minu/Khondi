@@ -32,6 +32,7 @@ class Rule:
     message: str
     pattern: re.Pattern[str]
     suffixes: tuple[str, ...]
+    exempt_prefixes: tuple[str, ...] = ()
 
 
 RULES: tuple[Rule, ...] = (
@@ -74,6 +75,13 @@ RULES: tuple[Rule, ...] = (
     ),
     Rule("Q14", "print in code", re.compile(r"^\s*print\("), PY),
     Rule("Q14", "console logging", re.compile(r"\bconsole\.(log|debug|info)\("), TS),
+    Rule(
+        "P3/P10",
+        "backing-service host literal or credential URL",
+        re.compile(r"(?:localhost|127\.0\.0\.1|postgres:|redis:|://[^\s/:]+:[^\s/@]+@)"),
+        CODE,
+        ("backend/tests/", "frontend/tests/"),
+    ),
 )
 
 
@@ -94,13 +102,14 @@ def is_exempt(path: str) -> bool:
 
 
 def check_line(path: str, line_no: int, text: str) -> list[Violation]:
-    if is_exempt(path):
-        return []
     suffix = PurePosixPath(path).suffix
     return [
         Violation(path, line_no, rule, text)
         for rule in RULES
-        if suffix in rule.suffixes and rule.pattern.search(text)
+        if suffix in rule.suffixes
+        and not is_exempt(path)
+        and not path.startswith(rule.exempt_prefixes)
+        and rule.pattern.search(text)
     ]
 
 
