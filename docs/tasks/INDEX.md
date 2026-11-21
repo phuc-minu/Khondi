@@ -9,6 +9,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0003](T0003-service-skeletons-config/) | Service skeletons and configuration | ready-for-phil | #50 (covered by T0002 approval) | #52 | `22-claude-review-r11.md` |
 | [T0004](T0004-compose-stack/) | Compose stack and networking | awaiting-plan-approval | this PR (design in T0002 v1) | | `01-spec.md` |
 | [T0005](T0005-postgres-migrations/) | PostgreSQL, migrations and recovery | awaiting-plan-approval | this PR (design in T0002 v1) | | `01-spec.md` |
+| [T0006](T0006-redis-worker/) | Redis and worker | awaiting-plan-approval | this PR (design in T0002 v1) | | `01-spec.md` |
 | [T0010](T0010-website-epic53/) | Public website: three pages and budget-first flow (epic #53) | spec signed off under delegation (PR #61) | this PR | (T0011–T0015) | `02-claude-delegated-signoff.md` |
 | [T0011](T0011-site-shell/) | Website site shell and test harness | blocked: waits for PR #52 (T0003) to merge | this PR (covered by T0010 signoff) | | `01-spec.md` |
 
