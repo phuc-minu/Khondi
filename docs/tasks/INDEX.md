@@ -10,6 +10,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0004](T0004-compose-stack/) | Compose stack and networking | needs-claude-review (reviewer: Codex) | #63 (merged; design in T0002 v1) | #64 (draft) | `03-claude-devops-handoff.md` |
 | [T0005](T0005-postgres-migrations/) | PostgreSQL, migrations and recovery | needs-claude-review (reviewer: Codex) | #65 (merged; design in T0002 v1) | draft PR (stacked on #64) | `03-claude-devops-handoff.md` |
 | [T0006](T0006-redis-worker/) | Redis and worker | needs-claude-review (reviewer: Codex) | #67 (merged; design in T0002 v1) | #68 (PR 1, stacked on #66); draft PR 2 (stacked on #68) | `04-claude-devops-handoff-pr2.md` |
+| [T0007](T0007-observability/) | Observability | in-progress | #70 (merged; design in T0002 v1) | draft PR 1 (stacked on #69) | `02-approval.md` |
 | [T0010](T0010-website-epic53/) | Public website: three pages and budget-first flow (epic #53) | spec signed off under delegation (PR #61) | this PR | (T0011–T0015) | `02-claude-delegated-signoff.md` |
 | [T0011](T0011-site-shell/) | Website site shell and test harness | blocked: waits for PR #52 (T0003) to merge | this PR (covered by T0010 signoff) | | `01-spec.md` |
 
