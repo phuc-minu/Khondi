@@ -44,6 +44,22 @@ class MigrationSettings(BaseSettings):
             raise ValueError("MIGRATIONS_DATABASE_URL must be a valid PostgreSQL URL") from None
 
 
+class WorkerSettings(BaseSettings):
+    """Settings for the Arq worker; no job reads the database yet, so it needs only Redis."""
+
+    model_config = SettingsConfigDict(env_file=None, case_sensitive=True, hide_input_in_errors=True)
+
+    ENVIRONMENT: Literal["local", "ci", "dev"]
+    REDIS_URL: SecretStr
+
+    @property
+    def redis_dsn(self) -> RedisDsn:
+        try:
+            return RedisDsn(self.REDIS_URL.get_secret_value())
+        except ValueError:
+            raise ValueError("REDIS_URL must be a valid Redis URL") from None
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]  # pydantic-settings reads required fields from env

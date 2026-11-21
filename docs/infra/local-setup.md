@@ -10,6 +10,7 @@ The local stack is defined in [`compose.yaml`](../../compose.yaml). It runs the 
   | What | Measured |
   | --- | --- |
   | RAM, all four containers running and idle | about 120 MiB (api 49, web 41, postgres 20, redis 8) |
+  | RAM added by the `worker` container, idle | about 29 MiB (measured 2026-11-21) |
   | Disk for images | about 1.6 GB (postgres 667 MB, web 447 MB, api 315 MB, redis 170 MB) |
   | First `up --build`, with base images already pulled | 46 s |
   | `up --build` with no code changes | 21 s |
@@ -46,7 +47,7 @@ These variables only change the port on your computer. Inside the stack the apps
 | --- | --- |
 | Start or update after code changes | `docker compose up --wait --build` |
 | See status | `docker compose ps` |
-| Follow logs | `docker compose logs -f api` (or `web`, `postgres`, `redis`) |
+| Follow logs | `docker compose logs -f api` (or `web`, `worker`, `postgres`, `redis`) |
 | Stop, keeping data | `docker compose down` |
 | Delete all local data | `python scripts/dev-reset.py` (see below) |
 
@@ -63,6 +64,15 @@ Schema changes are Alembic revisions in `backend/khondi_api/migrations/versions/
     uv run alembic revision --autogenerate -m "describe the change"
   ```
   Use your `KHONDI_PG_PORT` if you changed it.
+
+## Background worker
+The `worker` service runs background jobs with [Arq](https://arq-docs.helpmanual.io/). It uses the api image with the command `python -m khondi_api.worker`, and it has no port.
+- **Health:** the worker refreshes a heartbeat key in Redis every 10 s. `docker compose exec worker python -m khondi_api.worker --check` exits 0 while that key is fresh, and the Compose health check runs the same command.
+- **Job policy:** each job gets at most 3 tries and 300 s per try. Results are kept for an hour.
+- **Restarts:** on `docker compose stop` or `restart`, the worker cancels running jobs and puts them back on the queue, then exits within a few seconds. Those jobs run again on the next start.
+- **Delivery is at least once.** Because of restarts, a job can run more than once. Every job must be safe to run twice, and code that queues a job should pass a stable job ID (`_job_id`) so the same job isn't queued twice.
+- **Redis keeps no data on disk.** Restarting the `redis` container drops queued jobs and stored results. Anything that must survive belongs in PostgreSQL.
+- **Logs:** for now the worker logs only warnings and errors. Job-level JSON logs arrive with OpenTelemetry (T0007).
 
 ## Database roles
 - `migrate` connects as the schema owner (`POSTGRES_USER`, through `MIGRATIONS_DATABASE_URL`).
@@ -98,5 +108,6 @@ python scripts/dev-reset.py
 - **`429 Too Many Requests` while pulling images.** Docker Hub limits anonymous pulls. Sign in with `docker login`, or wait and retry.
 - **Slow builds or locked files.** The repository is under OneDrive. Build contexts there are slower, and OneDrive can lock files that `npm` or Docker are writing. Cloning into the WSL 2 file system (for example `~/src/khondi`) avoids both.
 - **`/readyz` says `postgres` failed and the api log mentions `password authentication failed for user "khondi_app"`.** Your data volume predates the app role. Run `python scripts/dev-reset.py` (see "Database roles").
+- **`worker` stays `unhealthy`.** Run `docker compose logs worker`. If it says `Missing or invalid setting: REDIS_URL`, fix `.env`. If Redis is down, the health check fails until `redis` is healthy again.
 - **`migrate` exited with an error.** Run `docker compose logs migrate`. The api doesn't start until `migrate` succeeds.
 - **A service stays `unhealthy`.** Run `docker compose ps --all` and `docker compose logs <service>`. The api exits with an error naming the variable if its settings are missing or invalid.

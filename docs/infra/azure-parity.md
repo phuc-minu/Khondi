@@ -6,9 +6,9 @@ T0003 establishes the shared service configuration contract. Local Compose and A
 | --- | --- | --- |
 | web | Azure Container App | `frontend/Dockerfile`, `PORT`, `ENVIRONMENT`, `API_BASE_URL` |
 | api | Azure Container App | `backend/Dockerfile`, `PORT`, `ENVIRONMENT`, `DATABASE_URL`, `REDIS_URL` |
-| worker | Azure Container App job | api image, separate command (T0006) |
+| worker (`python -m khondi_api.worker`, api image) | Azure Container App, no ingress, at least 1 replica | Same image, different command (P1); exec probe `python -m khondi_api.worker --check`, which reads the Redis heartbeat (P8); `ENVIRONMENT`, `REDIS_URL` (T0006) |
 | PostgreSQL | Azure Database for PostgreSQL Flexible Server | URL only (T0005) |
-| Redis | Azure Container App or managed Redis | URL only (T0006) |
+| Redis (queue and job results, no persistence) | Azure Container App or managed Redis | URL only; a `rediss://` URL turns on TLS in the worker (P4). Queued jobs are lost if Redis restarts (T0006) |
 | OpenTelemetry collector | Azure Container App | OTLP endpoint (T0007) |
 | `khondi-pgdata` volume (PostgreSQL data) | Flexible Server managed storage and automatic backups | No volume in Azure; data lives in the managed server (T0004) |
 | `migrate` one-off service (`python -m khondi_api.migrate`, api image) | Container Apps Job, manual trigger, run before each api rollout | Same image and command (P1, P6) |
@@ -20,9 +20,9 @@ T0003 establishes the shared service configuration contract. Local Compose and A
 | Variable | Used by | Required | Local source | Azure source | Secret |
 | --- | --- | --- | --- | --- | --- |
 | `PORT` | api, web | no | default | Container App env | no |
-| `ENVIRONMENT` | api, web | yes | `.env` | Container App env | no |
+| `ENVIRONMENT` | api, web, worker | yes | `.env` | Container App env | no |
 | `DATABASE_URL` | api (as `khondi_app`) | yes | `.env` | Key Vault reference | yes |
-| `REDIS_URL` | api | yes | `.env` | Key Vault reference | yes |
+| `REDIS_URL` | api, worker | yes | `.env` | Key Vault reference (the same secret for both) | yes |
 | `API_BASE_URL` | web | yes | `.env` | Container App env | no |
 | `MIGRATIONS_DATABASE_URL` | migrate | yes | `.env` | Key Vault reference, read only by the migrate job | yes |
 | `POSTGRES_APP_PASSWORD` | local `postgres` init script only | yes (local) | `.env` | none: the T0009 runbook sets the `khondi_app` password in Key Vault | local value only |
