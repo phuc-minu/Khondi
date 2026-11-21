@@ -147,6 +147,36 @@ jobs:
           test "$(docker inspect -f '{{.Config.User}}' khondi-web)" = "10001:10001"
           curl --fail --retry 10 --retry-all-errors --retry-delay 1 http://127.0.0.1:3000/api/healthz
 
+  stack:
+    # T0004: boot the Compose stack from a clean checkout, check health and data persistence.
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - name: Ports bind to 127.0.0.1 only and images use exact tags
+        run: |
+          docker compose config --format json > compose.json
+          jq -e '[.services[].ports[]? | .host_ip] | length > 0 and all(. == "127.0.0.1")' compose.json
+          jq -e '[.services[] | select(.image) | .image] | all(test(":[0-9]+[.][0-9]+([.][0-9]+)?$"))' compose.json
+      - run: timeout 300 docker compose up --wait --build
+      - name: Health and readiness
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:8000/healthz
+          test "$(curl --fail --silent --show-error http://127.0.0.1:8000/readyz)" = '{"status":"ready"}'
+          curl --fail --silent --show-error http://127.0.0.1:3000/api/healthz
+      - name: Data survives down and up
+        run: |
+          docker compose exec -T postgres psql -U khondi -d khondi -v ON_ERROR_STOP=1             -c "CREATE TABLE t0004_persist (v text); INSERT INTO t0004_persist VALUES ('kept');"
+          docker compose down
+          timeout 300 docker compose up --wait
+          test "$(docker compose exec -T postgres psql -U khondi -d khondi -tAc 'SELECT v FROM t0004_persist')" = "kept"
+      - if: failure()
+        run: docker compose ps --all && docker compose logs --no-color
+      - if: always()
+        run: docker compose down --volumes
+
   e2e:
     # Runs once frontend/playwright.config.ts exists. Uses recorded AI and provider responses.
     needs: [detect, frontend]

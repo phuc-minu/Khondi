@@ -1,0 +1,86 @@
+# Khondi local stack (T0004). Usage and ports: docs/infra/local-setup.md.
+# Same images as Azure (P1); configuration only from .env (P2); published ports bind to
+# 127.0.0.1 only, and KHONDI_*_PORT changes only the host side of each mapping.
+name: khondi
+
+services:
+  postgres:
+    image: postgres:16.16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env (copy .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (copy .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env (copy .env.example)}
+    ports:
+      - "127.0.0.1:${KHONDI_PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    # Queue and cache only, so no persistence volume (T0002 open question 3).
+    image: redis:7.4.12
+    ports:
+      - "127.0.0.1:${KHONDI_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    platform: linux/amd64
+    # Explicit list, not env_file: api and web read different PORT values.
+    environment:
+      PORT: ${PORT:-8000}
+      ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env (copy .env.example)}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env (copy .env.example)}
+    ports:
+      - "127.0.0.1:${KHONDI_API_PORT:-8000}:${PORT:-8000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl; readiness covers PostgreSQL and Redis (P8).
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; urllib.request.urlopen(f\"http://127.0.0.1:{os.environ['PORT']}/readyz\", timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  web:
+    build: ./frontend
+    platform: linux/amd64
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
+      API_BASE_URL: ${API_BASE_URL:?Set API_BASE_URL in .env (copy .env.example)}
+    ports:
+      - "127.0.0.1:${KHONDI_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch(`http://127.0.0.1:$${process.env.PORT}/api/healthz`).then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  pgdata:
+    name: khondi-pgdata
