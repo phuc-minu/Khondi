@@ -148,8 +148,8 @@ jobs:
           curl --fail --retry 10 --retry-all-errors --retry-delay 1 http://127.0.0.1:3000/api/healthz
 
   stack:
-    # T0004/T0005: boot the Compose stack from a clean checkout; check health, migrations,
-    # database privileges, data persistence and backup/restore.
+    # T0004-T0006: boot the Compose stack from a clean checkout; check health, migrations,
+    # database privileges, data persistence, backup/restore and worker restarts.
     needs: images
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -209,6 +209,67 @@ jobs:
           docker compose exec -T postgres psql -U khondi -d khondi -v ON_ERROR_STOP=1 -c "DROP TABLE t0004_persist"
           docker compose exec -T postgres pg_restore --clean --if-exists -U khondi -d khondi < khondi.dump
           test "$(docker compose exec -T postgres psql -U khondi -d khondi -tAc 'SELECT v FROM t0004_persist')" = "kept"
+      - name: A worker restart mid-job stops in time and reruns the job (T0006)
+        run: |
+          docker compose exec -T worker python - <<'PY'
+          import asyncio
+          import os
+
+          from arq.connections import create_pool
+          from pydantic import RedisDsn
+
+          from khondi_api.worker import redis_settings
+
+          TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+
+
+          async def main() -> None:
+              pool = await create_pool(redis_settings(RedisDsn(os.environ["REDIS_URL"])))
+              try:
+                  job = await pool.enqueue_job("echo", "restart", TRACEPARENT, 8, _job_id="t0006-restart")
+                  assert job is not None, "job was not queued"
+              finally:
+                  await pool.aclose()
+
+
+          asyncio.run(main())
+          PY
+          sleep 2
+          start=$(date +%s)
+          docker compose stop worker
+          elapsed=$(( $(date +%s) - start ))
+          echo "worker stopped in ${elapsed}s, exit code $(docker compose ps --all --format '{{.ExitCode}}' worker)"
+          test "$elapsed" -lt 10
+          test "$(docker compose ps --all --format '{{.ExitCode}}' worker)" = "0"
+          if docker compose run --rm --no-deps worker python -m khondi_api.worker --check; then
+            echo "--check passed with the worker stopped"; exit 1
+          fi
+          timeout 120 docker compose up --wait worker
+          docker compose exec -T worker python - <<'PY'
+          import asyncio
+          import os
+
+          from arq.connections import create_pool
+          from arq.jobs import Job
+          from pydantic import RedisDsn
+
+          from khondi_api.worker import redis_settings
+
+
+          async def main() -> None:
+              pool = await create_pool(redis_settings(RedisDsn(os.environ["REDIS_URL"])))
+              try:
+                  result = await Job("t0006-restart", pool).result(timeout=60)
+                  print(result)
+                  assert result.message == "restart"
+                  assert result.job_try == 2, result.job_try
+                  assert await pool.zscore("arq:queue", "t0006-restart") is None, "still queued"
+              finally:
+                  await pool.aclose()
+
+
+          asyncio.run(main())
+          PY
       - if: failure()
         run: docker compose ps --all && docker compose logs --no-color
       - if: always()
