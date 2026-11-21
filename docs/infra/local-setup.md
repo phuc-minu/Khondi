@@ -52,6 +52,33 @@ These variables only change the port on your computer. Inside the stack the apps
 
 Code changes need `up --build`; there's no hot reload in this setup yet.
 
+## Database migrations
+Schema changes are Alembic revisions in `backend/khondi_api/migrations/versions/`.
+- The `migrate` service applies them with `python -m khondi_api.migrate` on every `docker compose up`.
+- The api waits until `migrate` has finished successfully, and never migrates by itself.
+- To re-run it by hand: `docker compose run --rm migrate`. Running it again when nothing is new changes nothing.
+- To create a revision, run this from `backend/` with the stack's database reachable on your machine:
+  ```sh
+  MIGRATIONS_DATABASE_URL=postgresql://khondi:khondi@127.0.0.1:5432/khondi ENVIRONMENT=local \
+    uv run alembic revision --autogenerate -m "describe the change"
+  ```
+  Use your `KHONDI_PG_PORT` if you changed it.
+
+## Database roles
+- `migrate` connects as the schema owner (`POSTGRES_USER`, through `MIGRATIONS_DATABASE_URL`).
+- The api connects as `khondi_app` (through `DATABASE_URL`). That role can read and write data, but it can't create, change or drop tables.
+- PostgreSQL creates `khondi_app` the first time it starts with an **empty** data volume.
+
+**If you ran the stack before migrations were added (T0004),** run `python scripts/dev-reset.py` once so the role is created. Until then, `/readyz` reports `postgres` as failed.
+
+## Backing up and restoring
+```sh
+docker compose exec -T postgres pg_dump -Fc -U khondi khondi > khondi.dump
+docker compose exec -T postgres pg_restore --clean --if-exists -U khondi -d khondi < khondi.dump
+```
+- Restoring replaces the objects in the dump with the dumped versions.
+- `*.dump` files are git-ignored. Keep them out of OneDrive or any shared folder if they hold real data.
+
 ## Resetting local data
 `docker compose down` keeps the PostgreSQL volume (`khondi-pgdata`). To wipe it:
 ```sh
@@ -70,4 +97,6 @@ python scripts/dev-reset.py
 - **`no matching manifest for windows/amd64`.** Docker Desktop is in Windows-containers mode. Switch to Linux containers.
 - **`429 Too Many Requests` while pulling images.** Docker Hub limits anonymous pulls. Sign in with `docker login`, or wait and retry.
 - **Slow builds or locked files.** The repository is under OneDrive. Build contexts there are slower, and OneDrive can lock files that `npm` or Docker are writing. Cloning into the WSL 2 file system (for example `~/src/khondi`) avoids both.
+- **`/readyz` says `postgres` failed and the api log mentions `password authentication failed for user "khondi_app"`.** Your data volume predates the app role. Run `python scripts/dev-reset.py` (see "Database roles").
+- **`migrate` exited with an error.** Run `docker compose logs migrate`. The api doesn't start until `migrate` succeeds.
 - **A service stays `unhealthy`.** Run `docker compose ps --all` and `docker compose logs <service>`. The api exits with an error naming the variable if its settings are missing or invalid.
