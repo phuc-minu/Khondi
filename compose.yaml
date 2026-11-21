@@ -56,6 +56,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env (copy .env.example)}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env (copy .env.example)}
+      DIAGNOSTICS_ENABLED: ${DIAGNOSTICS_ENABLED:-false}
     ports:
       - "127.0.0.1:${KHONDI_API_PORT:-8000}:${PORT:-8000}"
     depends_on:

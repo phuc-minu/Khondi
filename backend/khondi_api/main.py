@@ -2,16 +2,19 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 import asyncpg
+from arq.connections import ArqRedis
 from asyncpg import PostgresError
 from fastapi import FastAPI, Response, status
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
+from khondi_api import diagnostics
 from khondi_api.connections import postgres_options
 from khondi_api.settings import get_settings
 
 app = FastAPI()
+app.include_router(diagnostics.router)
 DEPENDENCY_TIMEOUT_SECONDS = 2.0
 
 
@@ -25,6 +28,22 @@ async def load_settings() -> None:
     settings = get_settings()
     settings.database_dsn
     settings.redis_dsn
+
+
+@app.on_event("startup")
+async def open_queue() -> None:
+    # Connects on first use, so the api still starts (and /readyz reports it) if Redis is down.
+    settings = get_settings()
+    if settings.DIAGNOSTICS_ENABLED:
+        app.state.queue = ArqRedis.from_url(str(settings.redis_dsn), socket_connect_timeout=2)
+
+
+@app.on_event("shutdown")
+async def close_queue() -> None:
+    queue = getattr(app.state, "queue", None)
+    if isinstance(queue, ArqRedis):
+        await queue.aclose()
+        del app.state.queue
 
 
 async def check_postgres() -> None:

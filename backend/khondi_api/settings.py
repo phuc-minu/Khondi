@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "ci", "dev"]
     DATABASE_URL: SecretStr
     REDIS_URL: SecretStr
+    DIAGNOSTICS_ENABLED: bool = False
 
     @property
     def database_dsn(self) -> PostgresDsn:

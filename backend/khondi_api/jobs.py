@@ -5,18 +5,26 @@ therefore be idempotent, and callers deduplicate by passing a stable job ID.
 """
 
 import asyncio
+from typing import Annotated
 
 from arq.typing import WorkerCoroutine
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PlainValidator
 
-TRACEPARENT_PATTERN = r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+from khondi_api.tracecontext import TraceParent, parse_traceparent
+
+
+def _traceparent(value: str) -> TraceParent:
+    parsed = parse_traceparent(value)
+    if parsed is None:
+        raise ValueError("traceparent must be a W3C version 00 traceparent")
+    return parsed
 
 
 class EchoRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     message: str = Field(min_length=1, max_length=200)
-    traceparent: str = Field(pattern=TRACEPARENT_PATTERN)
+    traceparent: Annotated[TraceParent, PlainValidator(_traceparent)]
     delay_seconds: int = Field(default=0, ge=0, le=30)
 
 
@@ -35,12 +43,14 @@ async def echo(
 
     `delay_seconds` lets a restart be tested while the job is running.
     """
-    request = EchoRequest(message=message, traceparent=traceparent, delay_seconds=delay_seconds)
+    request = EchoRequest.model_validate(
+        {"message": message, "traceparent": traceparent, "delay_seconds": delay_seconds}
+    )
     await asyncio.sleep(request.delay_seconds)
     return EchoResult.model_validate(
         {
             "message": request.message,
-            "trace_id": request.traceparent.split("-")[1],
+            "trace_id": request.traceparent.trace_id,
             "job_try": ctx["job_try"],
         }
     )
