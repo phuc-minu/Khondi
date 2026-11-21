@@ -7,10 +7,12 @@ import pytest
 from arq.connections import ArqRedis, create_pool
 from arq.jobs import Job
 from arq.worker import Retry
-from pydantic import RedisDsn, ValidationError
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode
+from pydantic import RedisDsn
 
 from khondi_api import worker
-from khondi_api.jobs import JOBS, EchoResult, echo
+from khondi_api.jobs import JOBS, EchoResult, JobFailed, echo
 
 TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 
@@ -55,7 +57,7 @@ def test_worker_uses_the_job_policy() -> None:
 
 
 def test_echo_returns_message_trace_id_and_try() -> None:
-    result = asyncio.run(echo({"job_try": 2}, "hello", TRACEPARENT))
+    result = asyncio.run(echo({"job_id": "unit", "job_try": 2}, "hello", TRACEPARENT))
     assert result == EchoResult(
         message="hello", trace_id="4bf92f3577b34da6a3ce929d0e0e4736", job_try=2
     )
@@ -74,8 +76,9 @@ def test_echo_returns_message_trace_id_and_try() -> None:
 def test_echo_rejects_out_of_range_input(
     message: str, traceparent: str, delay_seconds: int
 ) -> None:
-    with pytest.raises(ValidationError):
-        asyncio.run(echo({"job_try": 1}, message, traceparent, delay_seconds))
+    # traced_job replaces the ValidationError, whose text holds the input, with its type name.
+    with pytest.raises(JobFailed, match="^ValidationError$"):
+        asyncio.run(echo({"job_id": "unit", "job_try": 1}, message, traceparent, delay_seconds))
 
 
 @pytest.fixture
@@ -120,6 +123,35 @@ def test_worker_runs_echo_and_stores_its_result(redis_dsn: RedisDsn) -> None:
     assert result == EchoResult(
         message="hello", trace_id="4bf92f3577b34da6a3ce929d0e0e4736", job_try=1
     )
+
+
+@pytest.mark.integration
+def test_failed_job_span_has_error_status_and_no_input(
+    redis_dsn: RedisDsn, spans: InMemorySpanExporter
+) -> None:
+    async def scenario() -> object:
+        pool = await create_pool(worker.redis_settings(redis_dsn))
+        try:
+            job = await enqueue(pool, "echo", "secret-input", TRACEPARENT, 31, job_id="bad-1")
+            assert job is not None
+            burst = worker.create_worker(redis_dsn, JOBS, burst=True)
+            await burst.main()
+            await burst.close()
+            info = await job.result_info()
+            assert info is not None and info.success is False
+            return info.result
+        finally:
+            await pool.aclose()
+
+    stored = asyncio.run(scenario())
+    assert isinstance(stored, JobFailed) and str(stored) == "ValidationError"
+    (span,) = [span for span in spans.get_finished_spans() if span.name == "job echo"]
+    assert span.status.status_code is StatusCode.ERROR
+    assert span.context.trace_id == int(TRACEPARENT.split("-")[1], 16)
+    (event,) = span.events
+    assert event.attributes is not None
+    assert event.attributes["exception.type"] == "ValidationError"
+    assert "secret-input" not in repr(span.attributes) + repr(event.attributes)
 
 
 @pytest.mark.integration

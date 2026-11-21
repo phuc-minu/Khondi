@@ -7,17 +7,21 @@ from urllib.parse import urlsplit, urlunsplit
 import pytest
 from arq.connections import create_pool
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import SpanKind
 from pydantic import RedisDsn
 
 from khondi_api import worker
 from khondi_api.jobs import JOBS
 from khondi_api.main import app
 from khondi_api.settings import get_settings
-from khondi_api.tracecontext import TraceParent, new_traceparent, parse_traceparent
+from khondi_api.tracecontext import TraceParent, parse_traceparent
 
 TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+CANARY = "t0007-canary-content"
 
 StartClient = Callable[..., TestClient]
+LogLines = Callable[[], list[dict[str, object]]]
 
 
 def test_parse_traceparent_accepts_a_valid_value() -> None:
@@ -40,12 +44,6 @@ def test_parse_traceparent_accepts_a_valid_value() -> None:
 )
 def test_parse_traceparent_rejects_invalid_values(value: str) -> None:
     assert parse_traceparent(value) is None
-
-
-def test_new_traceparent_parses_back() -> None:
-    fresh = new_traceparent()
-    assert parse_traceparent(str(fresh)) == fresh
-    assert fresh != new_traceparent()
 
 
 @pytest.fixture
@@ -198,3 +196,73 @@ def test_unreachable_queue_returns_503_without_the_url(
         assert response.status_code == 503
         assert response.json() == {"detail": "queue unavailable"}
         assert "SUPERSECRET" not in response.text and str(port) not in response.text
+
+
+@pytest.mark.integration
+def test_worker_span_is_a_child_of_the_api_request(
+    client_for: StartClient, redis_url: str, spans: InMemorySpanExporter
+) -> None:
+    client = client_for(redis_url)
+    client.post(
+        "/v1/diagnostics/echo", json={"message": "hi"}, headers={"traceparent": TRACEPARENT}
+    )
+    run_worker_burst(redis_url)
+    by_kind = {span.kind: span for span in spans.get_finished_spans()}
+    server, producer, consumer = (
+        by_kind[SpanKind.SERVER],
+        by_kind[SpanKind.PRODUCER],
+        by_kind[SpanKind.CONSUMER],
+    )
+    assert {server.name, producer.name, consumer.name} == {
+        "POST /v1/diagnostics/echo",
+        "enqueue echo",
+        "job echo",
+    }
+    assert {server.context.trace_id, producer.context.trace_id, consumer.context.trace_id} == {
+        int(TRACEPARENT.split("-")[1], 16)
+    }
+    assert server.parent is not None and server.parent.span_id == int(TRACEPARENT[36:52], 16)
+    assert producer.parent is not None and producer.parent.span_id == server.context.span_id
+    assert consumer.parent is not None and consumer.parent.span_id == producer.context.span_id
+
+
+@pytest.mark.integration
+def test_no_content_or_credentials_reach_spans_or_logs(
+    client_for: StartClient,
+    redis_url: str,
+    spans: InMemorySpanExporter,
+    log_lines: LogLines,
+) -> None:
+    client = client_for(redis_url)
+    done = client.post("/v1/diagnostics/echo", json={"message": CANARY}).json()["job_id"]
+
+    async def enqueue_invalid() -> None:
+        pool = await create_pool(worker.redis_settings(RedisDsn(redis_url)))
+        try:
+            await pool.enqueue_job("echo", CANARY * 20, TRACEPARENT, _job_id="too-long")
+        finally:
+            await pool.aclose()
+
+    asyncio.run(enqueue_invalid())
+    run_worker_burst(redis_url)
+    assert client.get(f"/v1/diagnostics/echo/{done}").json()["status"] == "complete"
+    assert client.get("/v1/diagnostics/echo/too-long").json()["status"] == "failed"
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    unreachable = client_for(f"redis://:SUPERSECRET@127.0.0.1:{port}/0")
+    assert unreachable.post("/v1/diagnostics/echo", json={"message": CANARY}).status_code == 503
+
+    exported = repr(
+        [
+            (span.name, span.attributes, span.events, span.status)
+            for span in spans.get_finished_spans()
+        ]
+    )
+    logged = repr(log_lines())
+    assert "job failed" in logged and "job finished" in logged
+    for text in (exported, logged):
+        assert CANARY not in text
+        assert "SUPERSECRET" not in text
+        assert "testclient" not in text  # TestClient's client address (R3)
