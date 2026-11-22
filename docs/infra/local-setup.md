@@ -11,6 +11,11 @@ The local stack is defined in [`compose.yaml`](../../compose.yaml). It runs the 
   | --- | --- |
   | RAM, all four containers running and idle | about 120 MiB (api 49, web 41, postgres 20, redis 8) |
   | RAM added by the `worker` container, idle | about 29 MiB (measured 2026-11-21) |
+  | RAM of `lgtm` after 9 minutes idle | about 800 MiB (measured 2026-11-22) |
+  | RAM of `otel-collector` after 9 minutes idle | about 48 MiB |
+  | RAM of `api` and `worker` with telemetry, idle | about 62 and 60 MiB |
+  | Disk for the telemetry images | about 4.4 GB (`lgtm` 3.8 GB, `otel-collector` 525 MB) |
+  | `lgtm` from start to healthy | about 45 s |
   | Disk for images | about 1.6 GB (postgres 667 MB, web 447 MB, api 315 MB, redis 170 MB) |
   | First `up --build`, with base images already pulled | 46 s |
   | `up --build` with no code changes | 21 s |
@@ -27,6 +32,7 @@ docker compose up --wait --build
 `--wait` returns once every service passes its health check. Then:
 - Web: http://127.0.0.1:3000 (health: `/api/healthz`).
 - API: http://127.0.0.1:8000 (`/healthz` = process alive, `/readyz` = PostgreSQL and Redis reachable).
+- Grafana (traces and logs): http://127.0.0.1:3001. See "Traces and logs".
 
 `.env` is git-ignored. Keep only local values in it, never real credentials.
 
@@ -39,6 +45,8 @@ Every port is bound to `127.0.0.1`, so nothing is reachable from other computers
 | api | 8000 | `KHONDI_API_PORT` |
 | PostgreSQL | 5432 | `KHONDI_PG_PORT` |
 | Redis | 6379 | `KHONDI_REDIS_PORT` |
+| Grafana | 3001 | `KHONDI_GRAFANA_PORT` |
+| OpenTelemetry collector (OTLP/HTTP) | 4318 | `KHONDI_OTLP_HTTP_PORT` |
 
 These variables only change the port on your computer. Inside the stack the apps still use `postgres:5432` and `redis:6379` from `DATABASE_URL` and `REDIS_URL`.
 
@@ -47,7 +55,7 @@ These variables only change the port on your computer. Inside the stack the apps
 | --- | --- |
 | Start or update after code changes | `docker compose up --wait --build` |
 | See status | `docker compose ps` |
-| Follow logs | `docker compose logs -f api` (or `web`, `worker`, `postgres`, `redis`) |
+| Follow logs | `docker compose logs -f api` (or `web`, `worker`, `postgres`, `redis`, `otel-collector`, `lgtm`) |
 | Stop, keeping data | `docker compose down` |
 | Delete all local data | `python scripts/dev-reset.py` (see below) |
 
@@ -78,7 +86,27 @@ The `worker` service runs background jobs with [Arq](https://arq-docs.helpmanual
   curl http://127.0.0.1:8000/v1/diagnostics/echo/<job_id from the first response>
   ```
   The result's `trace_id` is the one from your `traceparent` header. Add `-H "Idempotency-Key: my-key"` to see a repeat request return `"created": false`. These routes have no authentication, so keep the setting off anywhere other people can reach the api.
-- **Logs:** for now the worker logs only warnings and errors. Job-level JSON logs arrive with OpenTelemetry (T0007).
+- **Logs:** the worker writes one JSON line when a job starts and one when it finishes, fails or will retry. See "Traces and logs".
+
+## Traces and logs
+The api and worker send traces and logs to `otel-collector`, which forwards them to `lgtm` (Grafana with Tempo for traces and Loki for logs). Both start with the rest of the stack.
+- **Find a trace:** in Grafana, open *Explore*, pick **Tempo**, choose *TraceQL* and paste the trace ID (the 32 hex characters after `00-` in a `traceparent`, or a log line's `trace_id`). The trace shows the api's request, the `enqueue echo` span and the worker's `job echo` span under it.
+- **From a trace to its logs:** click a span, then *Logs for this span*. Loki shows the lines that carry the same `trace_id`.
+- **Logs on the command line:** every api and worker line is one JSON object, so you can filter by trace ID:
+  ```sh
+  docker compose logs --no-log-prefix api worker | jq -cR 'fromjson? | select(.trace_id == "0af7651916cd43dd8448eb211c80319c")'
+  ```
+  `-R` with `fromjson?` skips uvicorn's two plain-text start-up lines, which would otherwise stop `jq` with a parse error.
+- **Without telemetry:** leave `OTEL_EXPORTER_OTLP_ENDPOINT` empty in `.env`. The apps then export nothing, but their log lines still carry trace IDs. For apps run natively on this computer, use `http://127.0.0.1:4318`.
+- **Telemetry never breaks the app.** If the collector is down, requests and jobs still succeed. The api and worker log a `WARNING` and an `ERROR` from `opentelemetry.exporter` for each batch they couldn't send, and that telemetry is lost.
+- **Measured cost (2026-11-22):** see the table under Prerequisites. The api took 5.8 to 8.7 s from `up` to its first `/healthz` without an endpoint and 6.0 to 7.6 s with one (three runs each), so the difference is within run-to-run noise. Importing the telemetry code adds about 65 ms to each worker health check.
+- **Grafana signs everyone in as admin without a password.** It is bound to `127.0.0.1` and holds only local telemetry; don't publish its port.
+
+**What never goes into traces or logs** (rules R1 to R4 in [the T0007 spec](../tasks/T0007-observability/01-spec.md)):
+1. **R1 No content:** no request or response bodies, job arguments or results, prompts or LLM output. Use IDs, route templates, status codes and durations.
+2. **R2 No credentials:** no header values, cookies, query strings or connection URLs. The log formatter masks `scheme://user:password@`, and the collector deletes header and `url.query` attributes, but these are backstops.
+3. **R3 No personal data:** no client IP addresses. Uvicorn's access log is off; the api writes its own request line.
+4. **R4 Libraries too:** Arq's own INFO lines, which print job arguments, are turned off.
 
 ## Database roles
 - `migrate` connects as the schema owner (`POSTGRES_USER`, through `MIGRATIONS_DATABASE_URL`).
@@ -116,4 +144,11 @@ python scripts/dev-reset.py
 - **`/readyz` says `postgres` failed and the api log mentions `password authentication failed for user "khondi_app"`.** Your data volume predates the app role. Run `python scripts/dev-reset.py` (see "Database roles").
 - **`worker` stays `unhealthy`.** Run `docker compose logs worker`. If it says `Missing or invalid setting: REDIS_URL`, fix `.env`. If Redis is down, the health check fails until `redis` is healthy again.
 - **`migrate` exited with an error.** Run `docker compose logs migrate`. The api doesn't start until `migrate` succeeds.
+- **No traces in Grafana.**
+  - Check `.env` has `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318`, then `docker compose up --wait` again.
+  - Run `docker compose logs api worker | grep opentelemetry.exporter`. Errors there mean the collector was unreachable.
+  - Traces appear up to about 10 s after the request, because the apps send them in batches.
+  - Health checks (`/healthz`, `/readyz`) are never traced, by design.
+- **Grafana's port 3001 or the collector's port 4318 is already in use.** Set `KHONDI_GRAFANA_PORT` or `KHONDI_OTLP_HTTP_PORT` in `.env`, as for the other ports.
+- **`lgtm` stays `starting` for a minute.** It starts Grafana, Tempo, Loki and Prometheus inside one container; about 45 s is normal. `docker compose logs lgtm` shows which part is still waiting.
 - **A service stays `unhealthy`.** Run `docker compose ps --all` and `docker compose logs <service>`. The api exits with an error naming the variable if its settings are missing or invalid.

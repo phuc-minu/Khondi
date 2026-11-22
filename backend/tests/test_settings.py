@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from khondi_api.settings import Settings
+from khondi_api.settings import Settings, WorkerSettings
 
 
 def valid_environment() -> dict[str, str]:
@@ -40,3 +40,22 @@ def test_settings_invalid_secret_does_not_echo_value(monkeypatch: pytest.MonkeyP
     with pytest.raises(ValueError, match="DATABASE_URL") as error:
         settings.database_dsn
     assert secret not in str(error.value)
+
+
+@pytest.mark.parametrize("settings_class", [Settings, WorkerSettings])
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("", None), ("http://otel-collector:4318", "http://otel-collector:4318/")],
+)
+def test_otlp_endpoint_left_empty_means_no_export(
+    monkeypatch: pytest.MonkeyPatch,
+    settings_class: type[Settings] | type[WorkerSettings],
+    value: str,
+    expected: str | None,
+) -> None:
+    # Compose passes `${OTEL_EXPORTER_OTLP_ENDPOINT:-}` as an empty string when .env leaves it out.
+    for name, setting in valid_environment().items():
+        monkeypatch.setenv(name, setting)
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", value)
+    endpoint = settings_class().OTEL_EXPORTER_OTLP_ENDPOINT  # type: ignore[call-arg]  # fields are supplied from the test environment
+    assert (None if endpoint is None else str(endpoint)) == expected

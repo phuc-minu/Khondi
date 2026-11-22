@@ -1,0 +1,43 @@
+# T0007: receives OTLP/HTTP from the api and worker and forwards it to lgtm (Tempo, Loki).
+# The same file is the starting point for Azure, where T0009 swaps the exporter.
+extensions:
+  # Liveness on :13133; the image has no shell, so CI and Azure probe it over HTTP.
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+    spike_limit_mib: 50
+  # Second backstop for R2 (docs/tasks/T0007-observability/01-spec.md): the apps already
+  # drop these, and this keeps them out if a future library adds them.
+  attributes/redact:
+    actions:
+      - pattern: ^http\.(request|response)\.header\.
+        action: delete
+      - key: url.query
+        action: delete
+  batch: {}
+
+exporters:
+  otlphttp:
+    endpoint: http://lgtm:4318
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/redact, batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/redact, batch]
+      exporters: [otlphttp]
