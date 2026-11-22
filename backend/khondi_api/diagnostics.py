@@ -10,16 +10,18 @@ from typing import Annotated, Literal
 from arq.connections import ArqRedis
 from arq.jobs import Job, JobStatus
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, status
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind
 from pydantic import BaseModel, ConfigDict, Field
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from khondi_api.jobs import EchoResult
 from khondi_api.settings import get_settings
-from khondi_api.tracecontext import new_traceparent, parse_traceparent
 
 JOB_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 QUEUE_ERRORS = (RedisConnectionError, RedisTimeoutError, OSError)
+tracer = trace.get_tracer(__name__)
 
 
 def require_enabled() -> None:
@@ -64,17 +66,26 @@ def queue_unavailable() -> HTTPException:
 async def enqueue_echo(
     body: EchoBody,
     pool: Annotated[ArqRedis, Depends(queue)],
-    traceparent: Annotated[str | None, Header()] = None,
     idempotency_key: Annotated[str | None, Header(pattern=JOB_ID_PATTERN)] = None,
 ) -> Enqueued:
-    parent = (parse_traceparent(traceparent) if traceparent else None) or new_traceparent()
     job_id = idempotency_key or str(uuid.uuid4())
-    try:
-        job = await pool.enqueue_job(
-            "echo", body.message, str(parent), body.delay_seconds, _job_id=job_id
-        )
-    except QUEUE_ERRORS:
-        raise queue_unavailable() from None
+    # The instrumentation has already continued the caller's traceparent, or started a new
+    # trace; the job carries this span's context so the worker's span is its child.
+    with tracer.start_as_current_span(
+        "enqueue echo",
+        kind=SpanKind.PRODUCER,
+        attributes={"messaging.system": "arq", "messaging.message.id": job_id},
+    ):
+        carrier: dict[str, str] = {}
+        propagate.inject(carrier)
+        if "traceparent" not in carrier:
+            raise RuntimeError("tracing was not set up at startup")
+        try:
+            job = await pool.enqueue_job(
+                "echo", body.message, carrier["traceparent"], body.delay_seconds, _job_id=job_id
+            )
+        except QUEUE_ERRORS:
+            raise queue_unavailable() from None
     return Enqueued(job_id=job_id, created=job is not None)
 
 

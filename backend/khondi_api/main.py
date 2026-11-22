@@ -1,21 +1,55 @@
 import asyncio
+import logging
+import time
 from collections.abc import Awaitable, Callable
 
 import asyncpg
 from arq.connections import ArqRedis
 from asyncpg import PostgresError
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Request, Response, status
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
+from starlette.routing import Route
 
 from khondi_api import diagnostics
 from khondi_api.connections import postgres_options
 from khondi_api.settings import get_settings
+from khondi_api.telemetry import setup_telemetry
 
 app = FastAPI()
 app.include_router(diagnostics.router)
 DEPENDENCY_TIMEOUT_SECONDS = 2.0
+# Compose polls these every few seconds; tracing or logging them would bury real requests.
+HEALTH_PATHS = frozenset({"/healthz", "/readyz"})
+# Instrumented here, not at startup, because Starlette builds the middleware stack on the
+# first ASGI call, which is the startup event itself. Spans start once setup_telemetry runs.
+FastAPIInstrumentor.instrument_app(
+    app, excluded_urls=",".join(HEALTH_PATHS), exclude_spans=["receive", "send"]
+)
+request_log = logging.getLogger("khondi_api.request")
+
+
+@app.middleware("http")
+async def log_request(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    if request.url.path in HEALTH_PATHS:
+        return await call_next(request)
+    started = time.perf_counter()
+    response = await call_next(request)
+    route = request.scope.get("route")
+    request_log.info(
+        "request",
+        extra={
+            "method": request.method,
+            "route": route.path if isinstance(route, Route) else "unmatched",
+            "status": response.status_code,
+            "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+        },
+    )
+    return response
 
 
 @app.get("/healthz")
@@ -28,6 +62,12 @@ async def load_settings() -> None:
     settings = get_settings()
     settings.database_dsn
     settings.redis_dsn
+
+
+@app.on_event("startup")
+async def start_telemetry() -> None:
+    settings = get_settings()
+    setup_telemetry("khondi-api", settings.ENVIRONMENT, settings.OTEL_EXPORTER_OTLP_ENDPOINT)
 
 
 @app.on_event("startup")
