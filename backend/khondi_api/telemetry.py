@@ -106,17 +106,20 @@ class RedactingSpanExporter(SpanExporter):
 
 
 class RedactFilter(logging.Filter):
-    """Masks URL credentials and turns exception info into a masked `exception` field (R2).
+    """Masks URL credentials (R2) and reduces exception info to `error_type` and `frames` (R1).
 
-    It runs before both the stdout and the OTLP handler, so neither sees the raw text.
+    Exception messages, including those of chained exceptions, can repeat request or job input,
+    so only the type and the traceback's file, line and code are kept. The filter runs before
+    both the stdout and the OTLP handler, so neither sees the raw exception.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.msg = mask_credentials(record.getMessage())
         record.args = None
         if record.exc_info:
-            text = "".join(traceback.format_exception(*record.exc_info))
-            setattr(record, "exception", mask_credentials(text))
+            error_class, _, frames = record.exc_info
+            setattr(record, "error_type", error_class.__name__ if error_class else "unknown")
+            setattr(record, "frames", mask_credentials("".join(traceback.format_tb(frames))))
             record.exc_info = None
             record.exc_text = None
         return True
@@ -153,6 +156,12 @@ def json_handler(stream: TextIO, service: str, environment: str) -> logging.Hand
     return handler
 
 
+def otlp_handler(logger_provider: LoggerProvider) -> logging.Handler:
+    handler = LoggingHandler(logger_provider=logger_provider)
+    handler.addFilter(RedactFilter())
+    return handler
+
+
 @cache
 def setup_telemetry(service: str, environment: str, endpoint: AnyHttpUrl | None) -> None:
     """Installs tracing and JSON logs once per process; exports only when `endpoint` is set."""
@@ -171,9 +180,7 @@ def setup_telemetry(service: str, environment: str, endpoint: AnyHttpUrl | None)
             BatchLogRecordProcessor(OTLPLogExporter(endpoint=f"{base}/v1/logs"))
         )
         set_logger_provider(logger_provider)
-        otlp_handler = LoggingHandler(logger_provider=logger_provider)
-        otlp_handler.addFilter(RedactFilter())
-        handlers.append(otlp_handler)
+        handlers.append(otlp_handler(logger_provider))
     trace.set_tracer_provider(tracer_provider)
 
     root = logging.getLogger()

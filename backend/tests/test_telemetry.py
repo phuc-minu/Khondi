@@ -1,11 +1,18 @@
 import logging
+import threading
 from collections.abc import Callable, Iterator, Sequence
 
+import httpx
 import pytest
+import uvicorn
 from fastapi.testclient import TestClient
 from opentelemetry import trace
-from opentelemetry.sdk._logs import ReadableLogRecord
-from opentelemetry.sdk._logs.export import LogRecordExporter, LogRecordExportResult
+from opentelemetry.sdk._logs import LoggerProvider, ReadableLogRecord
+from opentelemetry.sdk._logs.export import (
+    LogRecordExporter,
+    LogRecordExportResult,
+    SimpleLogRecordProcessor,
+)
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind, StatusCode
 from pydantic import AnyHttpUrl
@@ -16,6 +23,7 @@ from khondi_api.settings import get_settings
 
 LogLines = Callable[[], list[dict[str, object]]]
 TRACEPARENT = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+CANARY = "t0007-canary-content"
 logger = logging.getLogger("khondi_api.test")
 
 
@@ -48,7 +56,8 @@ def test_credentials_in_messages_and_exceptions_are_masked(log_lines: LogLines) 
         logger.exception("query failed")
     connecting, failed = log_lines()
     assert connecting["message"] == "connecting to redis://***@cache:6379/0"
-    assert "ValueError: postgresql://***@db:5432/khondi refused" in str(failed["exception"])
+    assert failed["error_type"] == "ValueError"
+    assert "test_credentials_in_messages_and_exceptions_are_masked" in str(failed["frames"])
     assert "SUPERSECRET" not in repr(log_lines())
 
 
@@ -161,3 +170,78 @@ def test_exporters_are_created_only_when_an_endpoint_is_set(
         ]
     finally:
         root.handlers = handlers
+
+
+class CapturedLogs(NullLogExporter):
+    def __init__(self) -> None:
+        self.records: list[ReadableLogRecord] = []
+
+    def export(self, batch: Sequence[ReadableLogRecord]) -> LogRecordExportResult:
+        self.records.extend(batch)
+        return LogRecordExportResult.SUCCESS
+
+
+@pytest.fixture
+def otlp_logs() -> Iterator[CapturedLogs]:
+    """The production OTLP log handler, exporting to memory instead of a collector."""
+    captured = CapturedLogs()
+    provider = LoggerProvider()
+    provider.add_log_record_processor(SimpleLogRecordProcessor(captured))
+    handler = telemetry.otlp_handler(provider)
+    logging.getLogger().addHandler(handler)
+    yield captured
+    logging.getLogger().removeHandler(handler)
+
+
+async def fail_with_content() -> None:
+    raise ValueError(f"could not parse {CANARY}")
+
+
+def test_unhandled_api_exception_logs_only_its_type(
+    client: TestClient,
+    spans: InMemorySpanExporter,
+    log_lines: LogLines,
+    otlp_logs: CapturedLogs,
+) -> None:
+    """A route that raises with request content, served by real uvicorn (R1, R4)."""
+    app.add_api_route("/v1/t0007-raises", fail_with_content, methods=["POST"])
+    server = uvicorn.Server(uvicorn.Config(app, port=0, log_config=None, lifespan="off"))
+    thread = threading.Thread(target=server.run)
+    thread.start()
+    try:
+        for _ in range(200):
+            if server.started:
+                break
+            thread.join(0.05)
+        assert server.started, "uvicorn did not start within 10 s"
+        port = server.servers[0].sockets[0].getsockname()[1]
+        response = httpx.post(
+            f"http://127.0.0.1:{port}/v1/t0007-raises", headers={"traceparent": TRACEPARENT}
+        )
+    finally:
+        server.should_exit = True
+        thread.join()
+        app.router.routes.pop()
+    assert response.status_code == 500
+
+    lines = log_lines()
+    (error,) = [line for line in lines if line["level"] == "ERROR"]
+    assert error["logger"] == "uvicorn.error"
+    assert str(error["message"]).strip() == "Exception in ASGI application"
+    assert error["error_type"] == "ValueError"
+    assert "fail_with_content" in str(error["frames"])
+    (request,) = [line for line in lines if line["logger"] == "khondi_api.request"]
+    assert (request["route"], request["status"], request["error_type"]) == (
+        "/v1/t0007-raises",
+        500,
+        "ValueError",
+    )
+    assert request["trace_id"] == TRACEPARENT.split("-")[1]
+    (span,) = spans.get_finished_spans()
+    assert span.status.status_code is StatusCode.ERROR
+
+    exported = [record.to_json() for record in otlp_logs.records]
+    assert any("Exception in ASGI application" in record for record in exported)
+    assert CANARY not in repr(lines)
+    assert CANARY not in "".join(exported)
+    assert CANARY not in repr((span.attributes, span.events, span.status))
