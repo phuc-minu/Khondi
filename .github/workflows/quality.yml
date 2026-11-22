@@ -285,13 +285,14 @@ jobs:
           done
           echo "$result"
           echo "$result" | jq -e '.status == "complete" and .result.trace_id == "0af7651916cd43dd8448eb211c80319c"'
-      - name: Traces and logs reach Tempo and Loki without content or credentials (T0007)
+      - name: One trace from web to worker reaches Tempo and Loki without content or credentials (T0007)
         env:
           TRACE_ID: 5bf92f3577b34da6a3ce929d0e0e4736
         run: |
           # The collector image has no shell; probe its health endpoint from the lgtm container.
           docker compose exec -T lgtm curl --fail --silent --show-error http://otel-collector:13133/
-          response=$(curl --fail --silent --show-error -X POST http://127.0.0.1:8000/v1/diagnostics/echo             -H "traceparent: 00-$TRACE_ID-00f067aa0ba902b7-01" -H "Content-Type: application/json"             -d '{"message":"t0007-canary-content"}')
+          # Through the web route, so the trace covers web, api and worker (T0002 AC 7).
+          response=$(curl --fail --silent --show-error -X POST http://127.0.0.1:3000/api/diagnostics/echo             -H "traceparent: 00-$TRACE_ID-00f067aa0ba902b7-01" -H "Content-Type: application/json"             -d '{"message":"t0007-canary-content"}')
           job_id=$(echo "$response" | jq -r .job_id)
           for _ in $(seq 30); do
             result=$(curl --fail --silent --show-error "http://127.0.0.1:8000/v1/diagnostics/echo/$job_id")
@@ -340,17 +341,29 @@ jobs:
                   if error.code != 404:
                       raise
               kinds = {(service, kind) for service, _, kind, _ in tree.values()}
-              if {("khondi-api", "SPAN_KIND_SERVER"), ("khondi-worker", "SPAN_KIND_CONSUMER")} <= kinds:
+              if {
+                  ("khondi-web", "SPAN_KIND_SERVER"),
+                  ("khondi-api", "SPAN_KIND_SERVER"),
+                  ("khondi-worker", "SPAN_KIND_CONSUMER"),
+              } <= kinds:
                   break
               time.sleep(1)
           for span_id, span in sorted(tree.items()):
               print(span_id, *span)
           (server,) = [i for i, s in tree.items() if s[0] == "khondi-api" and s[2] == "SPAN_KIND_SERVER"]
           (job,) = [i for i, s in tree.items() if s[0] == "khondi-worker" and s[1] == "job echo"]
-          ancestor = tree[job][3]
-          while ancestor in tree and ancestor != server:
-              ancestor = tree[ancestor][3]
-          assert ancestor == server, "job echo is not a descendant of the api's server span"
+
+
+          def ancestors(span_id: str) -> list[str]:
+              chain = []
+              while tree[span_id][3] in tree:
+                  span_id = tree[span_id][3]
+                  chain.append(span_id)
+              return chain
+
+
+          assert server in ancestors(job), "job echo is not a descendant of the api's server span"
+          assert any(tree[i][0] == "khondi-web" for i in ancestors(server)), "the api's span has no khondi-web parent"
 
           query = f'{{service_name=~"khondi-api|khondi-worker"}} | trace_id="{TRACE_ID}"'
           log_url = f"{GRAFANA}/loki/loki/api/v1/query_range?" + urllib.parse.urlencode(
@@ -368,6 +381,9 @@ jobs:
           for text in FORBIDDEN:
               assert text not in trace_body and text not in log_body, f"{text!r} reached Tempo or Loki"
           PY
+          # The web logs to stdout only; its request line carries the same trace ID.
+          docker compose logs --no-log-prefix web | grep -F '"logger":"khondi_web.request"' | grep -F "\"trace_id\":\"$TRACE_ID\""
+          if docker compose logs --no-log-prefix web | grep -F t0007-canary-content; then exit 1; fi
       - name: Requests and jobs still succeed with the collector stopped (T0007)
         run: |
           docker compose stop otel-collector

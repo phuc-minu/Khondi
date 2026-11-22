@@ -4,7 +4,7 @@ T0003 establishes the shared service configuration contract. Local Compose and A
 
 | Local service | Azure target | Image/configuration contract |
 | --- | --- | --- |
-| web | Azure Container App | `frontend/Dockerfile`, `PORT`, `ENVIRONMENT`, `API_BASE_URL` |
+| web | Azure Container App | `frontend/Dockerfile`, `PORT`, `ENVIRONMENT`, `API_BASE_URL`; `OTEL_EXPORTER_OTLP_ENDPOINT` and `DIAGNOSTICS_ENABLED` (T0007) |
 | api | Azure Container App | `backend/Dockerfile`, `PORT`, `ENVIRONMENT`, `DATABASE_URL`, `REDIS_URL` |
 | worker (`python -m khondi_api.worker`, api image) | Azure Container App, no ingress, at least 1 replica | Same image, different command (P1); exec probe `python -m khondi_api.worker --check`, which reads the Redis heartbeat (P8); `ENVIRONMENT`, `REDIS_URL` (T0006) |
 | PostgreSQL | Azure Database for PostgreSQL Flexible Server | URL only (T0005) |
@@ -24,8 +24,8 @@ T0003 establishes the shared service configuration contract. Local Compose and A
 | `ENVIRONMENT` | api, web, worker | yes | `.env` | Container App env | no |
 | `DATABASE_URL` | api (as `khondi_app`) | yes | `.env` | Key Vault reference | yes |
 | `REDIS_URL` | api, worker | yes | `.env` | Key Vault reference (the same secret for both) | yes |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | api, worker | no (empty = export nothing) | `.env` (`http://otel-collector:4318`) | Container App env: the collector's internal URL | no |
-| `DIAGNOSTICS_ENABLED` | api | no (default `false`) | `.env` (`true` locally) | Container App env, `false` in dev unless Phil turns it on: the routes have no authentication | no |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | api, worker, web | no (empty = export nothing) | `.env` (`http://otel-collector:4318`) | Container App env: the collector's internal URL | no |
+| `DIAGNOSTICS_ENABLED` | api, web (each reads its own) | no (default `false`) | `.env` (`true` locally) | Container App env, `false` in dev unless Phil turns it on: the routes have no authentication | no |
 | `API_BASE_URL` | web | yes | `.env` | Container App env | no |
 | `MIGRATIONS_DATABASE_URL` | migrate | yes | `.env` | Key Vault reference, read only by the migrate job | yes |
 | `POSTGRES_APP_PASSWORD` | local `postgres` init script only | yes (local) | `.env` | none: the T0009 runbook sets the `khondi_app` password in Key Vault | local value only |

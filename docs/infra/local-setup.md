@@ -14,6 +14,7 @@ The local stack is defined in [`compose.yaml`](../../compose.yaml). It runs the 
   | RAM of `lgtm` after 9 minutes idle | about 800 MiB (measured 2026-11-22) |
   | RAM of `otel-collector` after 9 minutes idle | about 48 MiB |
   | RAM of `api` and `worker` with telemetry, idle | about 62 and 60 MiB |
+  | RAM of `web` with telemetry, idle | about 44 MiB |
   | Disk for the telemetry images | about 4.4 GB (`lgtm` 3.8 GB, `otel-collector` 525 MB) |
   | `lgtm` from start to healthy | about 45 s |
   | Disk for images | about 1.6 GB (postgres 667 MB, web 447 MB, api 315 MB, redis 170 MB) |
@@ -80,23 +81,30 @@ The `worker` service runs background jobs with [Arq](https://arq-docs.helpmanual
 - **Restarts:** on `docker compose stop` or `restart`, the worker cancels running jobs and puts them back on the queue, then exits within a few seconds. Those jobs run again on the next start.
 - **Delivery is at least once.** Because of restarts, a job can run more than once. Every job must be safe to run twice, and code that queues a job should pass a stable job ID (`_job_id`) so the same job isn't queued twice.
 - **Redis keeps no data on disk.** Restarting the `redis` container drops queued jobs and stored results. Anything that must survive belongs in PostgreSQL.
-- **Try it:** with `DIAGNOSTICS_ENABLED=true` (the `.env.example` value), the api queues a test job and shows its result:
+- **Try it:** with `DIAGNOSTICS_ENABLED=true` (the `.env.example` value), the web app asks the api to queue a test job, and the api shows its result:
   ```sh
-  curl -X POST http://127.0.0.1:8000/v1/diagnostics/echo -H "Content-Type: application/json"     -H "traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" -d '{"message":"hello"}'
+  curl -X POST http://127.0.0.1:3000/api/diagnostics/echo -H "Content-Type: application/json"     -H "traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" -d '{"message":"hello"}'
   curl http://127.0.0.1:8000/v1/diagnostics/echo/<job_id from the first response>
   ```
-  The result's `trace_id` is the one from your `traceparent` header. Add `-H "Idempotency-Key: my-key"` to see a repeat request return `"created": false`. These routes have no authentication, so keep the setting off anywhere other people can reach the api.
+  - The result's `trace_id` is the one from your `traceparent` header, and Grafana shows one trace from the web through the api to the worker.
+  - Add `-H "Idempotency-Key: my-key"` to see a repeat request return `"created": false`.
+  - The api's own route, `POST http://127.0.0.1:8000/v1/diagnostics/echo`, takes the same body.
+  - The web route answers `422` for an invalid body and `502 {"detail": "api unavailable"}` if the api can't queue the job.
+  - These routes have no authentication, so keep the setting off anywhere other people can reach the app.
 - **Logs:** the worker writes one JSON line when a job starts and one when it finishes, fails or will retry. See "Traces and logs".
 
 ## Traces and logs
-The api and worker send traces and logs to `otel-collector`, which forwards them to `lgtm` (Grafana with Tempo for traces and Loki for logs). Both start with the rest of the stack.
-- **Find a trace:** in Grafana, open *Explore*, pick **Tempo**, choose *TraceQL* and paste the trace ID (the 32 hex characters after `00-` in a `traceparent`, or a log line's `trace_id`). The trace shows the api's request, the `enqueue echo` span and the worker's `job echo` span under it.
-- **From a trace to its logs:** click a span, then *Logs for this span*. Loki shows the lines that carry the same `trace_id`.
-- **Logs on the command line:** every api and worker line is one JSON object, so you can filter by trace ID:
+The web, api and worker send traces to `otel-collector`, and the api and worker also send their logs. The collector forwards them to `lgtm` (Grafana with Tempo for traces and Loki for logs). Both start with the rest of the stack.
+- **Find a trace:** in Grafana, open *Explore*, pick **Tempo**, choose *TraceQL* and paste the trace ID (the 32 hex characters after `00-` in a `traceparent`, or a log line's `trace_id`).
+  - For a request to the web's diagnostics route, the trace shows `khondi-web`'s request and its `fetch` to the api.
+  - Under that come the api's request, the `enqueue echo` span and the worker's `job echo` span.
+- **From a trace to its logs:** click an api or worker span, then *Logs for this span*. Loki shows the lines that carry the same `trace_id`. The web's log lines are on stdout only.
+- **Logs on the command line:** every web, api and worker log line is one JSON object, so you can filter by trace ID:
   ```sh
-  docker compose logs --no-log-prefix api worker | jq -cR 'fromjson? | select(.trace_id == "0af7651916cd43dd8448eb211c80319c")'
+  docker compose logs --no-log-prefix web api worker | jq -cR 'fromjson? | select(.trace_id == "0af7651916cd43dd8448eb211c80319c")'
   ```
-  `-R` with `fromjson?` skips uvicorn's two plain-text start-up lines, which would otherwise stop `jq` with a parse error.
+  `-R` with `fromjson?` skips the plain-text start-up lines from uvicorn and Next.js, which would otherwise stop `jq` with a parse error.
+- **Trace headers stay inside Khondi.** The web sends trace headers only to `API_BASE_URL`, so later calls to outside providers never receive Khondi trace IDs.
 - **Without telemetry:** leave `OTEL_EXPORTER_OTLP_ENDPOINT` empty in `.env`. The apps then export nothing, but their log lines still carry trace IDs. For apps run natively on this computer, use `http://127.0.0.1:4318`.
 - **Telemetry never breaks the app.** If the collector is down, requests and jobs still succeed. The api and worker log a `WARNING` and an `ERROR` from `opentelemetry.exporter` for each batch they couldn't send, and that telemetry is lost.
 - **Measured cost (2026-11-22):** see the table under Prerequisites. The api took 5.8 to 8.7 s from `up` to its first `/healthz` without an endpoint and 6.0 to 7.6 s with one (three runs each), so the difference is within run-to-run noise. Importing the telemetry code adds about 65 ms to each worker health check.

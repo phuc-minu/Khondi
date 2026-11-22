@@ -109,6 +109,8 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
       API_BASE_URL: ${API_BASE_URL:?Set API_BASE_URL in .env (copy .env.example)}
+      DIAGNOSTICS_ENABLED: ${DIAGNOSTICS_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "127.0.0.1:${KHONDI_WEB_PORT:-3000}:3000"
     depends_on:
