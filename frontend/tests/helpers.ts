@@ -5,6 +5,14 @@ import { z } from "zod";
 
 export type Received = { path: string; headers: IncomingHttpHeaders; body: string };
 
+/** An answer body sent as-is instead of as JSON; `dropAfter` closes the connection mid-body. */
+export class RawBody {
+  constructor(
+    readonly text: string,
+    readonly dropAfter = false,
+  ) {}
+}
+
 /** A real local HTTP server standing in for the api, or for a third party. */
 export class FakeServer {
   readonly received: Received[] = [];
@@ -22,8 +30,17 @@ export class FakeServer {
       });
       request.on("end", () => {
         this.received.push({ path: request.url ?? "", headers: request.headers, body });
+        if (answer instanceof RawBody && answer.dropAfter) {
+          // Promise more bytes than are sent, then cut the connection.
+          response.writeHead(status, {
+            "content-type": "application/json",
+            "content-length": String(answer.text.length + 100),
+          });
+          response.write(answer.text, () => response.destroy());
+          return;
+        }
         response.writeHead(status, { "content-type": "application/json" });
-        response.end(JSON.stringify(answer));
+        response.end(answer instanceof RawBody ? answer.text : JSON.stringify(answer));
       });
     });
   }

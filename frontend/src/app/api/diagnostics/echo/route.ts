@@ -51,22 +51,44 @@ async function forward(request: Request): Promise<Answer> {
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
   } catch (error) {
-    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
-    if (!(error instanceof TypeError || timedOut)) throw error;
     // Neither the URL nor the body is logged (R1, R2).
     log("WARNING", "khondi_web.diagnostics", "api unreachable", {
-      error_type: timedOut ? "TimeoutError" : "TypeError",
+      error_type: networkErrorType(error),
     });
     return UNAVAILABLE;
   }
-  const answer = response.status === 202 ? enqueued.safeParse(await response.json()) : undefined;
-  if (answer === undefined || !answer.success) {
+  if (response.status !== 202) {
     log("WARNING", "khondi_web.diagnostics", "api did not queue the job", {
       api_status: response.status,
     });
     return UNAVAILABLE;
   }
+  // A 202 whose body is not JSON, or is cut off or times out while being read, is still a
+  // failed call to the api, not a crash of this route.
+  let answerBody: unknown;
+  try {
+    answerBody = await response.json();
+  } catch (error) {
+    const errorType = error instanceof SyntaxError ? "SyntaxError" : networkErrorType(error);
+    log("WARNING", "khondi_web.diagnostics", "api answer unreadable", {
+      api_status: 202,
+      error_type: errorType,
+    });
+    return UNAVAILABLE;
+  }
+  const answer = enqueued.safeParse(answerBody);
+  if (!answer.success) {
+    log("WARNING", "khondi_web.diagnostics", "api answer was not a job", { api_status: 202 });
+    return UNAVAILABLE;
+  }
   return { status: 202, body: answer.data };
+}
+
+/** Names a network failure or timeout from fetch; re-throws anything else (Q6). */
+function networkErrorType(error: unknown): "TypeError" | "TimeoutError" {
+  if (error instanceof DOMException && error.name === "TimeoutError") return "TimeoutError";
+  if (error instanceof TypeError) return "TypeError";
+  throw error;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {

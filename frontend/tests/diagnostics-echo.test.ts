@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "../src/app/api/diagnostics/echo/route";
-import { captureLogLines, FakeServer } from "./helpers";
+import { captureLogLines, FakeServer, RawBody } from "./helpers";
 
 const CANARY = "t0007-canary-content";
 let api: FakeServer;
@@ -103,6 +103,28 @@ describe("POST /api/diagnostics/echo", () => {
   it("answers 502 when the api's answer is not a job", async () => {
     await useApi(202, { unexpected: true });
     expect((await echo({ message: "hi" })).status).toBe(502);
+  });
+
+  it.each([
+    ["is not JSON", new RawBody(`<html>${CANARY}</html>`), "SyntaxError"],
+    ["is empty", new RawBody(""), "SyntaxError"],
+    ["is cut off mid-body", new RawBody('{"job_id": "j-', true), "TypeError"],
+  ])("answers 502 and logs both lines when a 202 body %s", async (_case, body, errorType) => {
+    await useApi(202, body);
+    const lines = captureLogLines();
+    const response = await echo({ message: CANARY });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ detail: "api unavailable" });
+    const [warning, request] = lines();
+    expect(warning).toMatchObject({
+      level: "WARNING",
+      message: "api answer unreadable",
+      api_status: 202,
+      error_type: errorType,
+    });
+    expect(request).toMatchObject({ logger: "khondi_web.request", status: 502 });
+    expect(JSON.stringify(lines())).not.toContain(CANARY);
+    expect(JSON.stringify(lines())).not.toContain("127.0.0.1");
   });
 
   it("writes one request line with no content", async () => {
