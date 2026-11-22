@@ -38,18 +38,28 @@ async def log_request(
     if request.url.path in HEALTH_PATHS:
         return await call_next(request)
     started = time.perf_counter()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as error:
+        # Uvicorn answers 500 and logs the error; this line keeps the route and the type (R1).
+        log_request_line(request, 500, started, error_type=type(error).__name__)
+        raise
+    log_request_line(request, response.status_code, started)
+    return response
+
+
+def log_request_line(request: Request, status_code: int, started: float, **extra: str) -> None:
     route = request.scope.get("route")
     request_log.info(
         "request",
         extra={
             "method": request.method,
             "route": route.path if isinstance(route, Route) else "unmatched",
-            "status": response.status_code,
+            "status": status_code,
             "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+            **extra,
         },
     )
-    return response
 
 
 @app.get("/healthz")
