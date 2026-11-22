@@ -7,7 +7,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0001](T0001-handoff-workflow/) | Claude–Codex handoff workflow | merged | (requested directly by Phil) | #48 | `01-spec.md` |
 | [T0002](T0002-local-infra-azure-parity/) | Local dev infrastructure that can be duplicated in Azure | merged | #49 | (T0003–T0009) | `01-spec.md` |
 | [T0003](T0003-service-skeletons-config/) | Service skeletons and configuration | ready-for-phil | #50 (covered by T0002 approval) | #52 | `22-claude-review-r11.md` |
-| [T0004](T0004-compose-stack/) | Compose stack and networking | needs-claude-review (reviewer: Codex): rework r1 for the GitHub review's two P1 findings | #63 (merged; design in T0002 v1) | #64 | `05-claude-devops-rework-r1.md` |
+| [T0004](T0004-compose-stack/) | Compose stack and networking | APPROVE_FOR_OWNER_REVIEW | #63 (merged; design in T0002 v1) | #64 | `06-codex-review-r2.md` |
 | [T0005](T0005-postgres-migrations/) | PostgreSQL, migrations and recovery | needs-claude-review (reviewer: Codex) | #65 (merged; design in T0002 v1) | #66 (stacked on #64) | `01-spec.md` |
 | [T0006](T0006-redis-worker/) | Redis and worker | needs-claude-review (reviewer: Codex) | #67 (merged; design in T0002 v1) | #68, #69 (stacked on #66) | `01-spec.md` |
 | [T0007](T0007-observability/) | Observability | needs-claude-review (reviewer: Codex) | #70 (merged; design in T0002 v1) | PR 1 in #69; #72 (stacked on #69) | `01-spec.md` |
