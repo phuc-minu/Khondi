@@ -56,6 +56,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env (copy .env.example)}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env (copy .env.example)}
+      DIAGNOSTICS_ENABLED: ${DIAGNOSTICS_ENABLED:-false}
     ports:
       - "127.0.0.1:${KHONDI_API_PORT:-8000}:${PORT:-8000}"
     depends_on:
@@ -76,6 +77,29 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
+
+  worker:
+    # Same image as the api, different command (P1). No ports: it only talks to Redis.
+    build: ./backend
+    platform: linux/amd64
+    command: ["python", "-m", "khondi_api.worker"]
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env (copy .env.example)}
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # Passes while the worker's heartbeat key in Redis is fresh (P8).
+      test: ["CMD", "python", "-m", "khondi_api.worker", "--check"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
+    # SIGTERM cancels running jobs and requeues them; the process exits well within this (P7).
+    stop_grace_period: 10s
 
   web:
     build: ./frontend

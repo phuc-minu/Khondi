@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import PostgresDsn, RedisDsn, SecretStr
+from pydantic import AnyHttpUrl, PostgresDsn, RedisDsn, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "ci", "dev"]
     DATABASE_URL: SecretStr
     REDIS_URL: SecretStr
+    DIAGNOSTICS_ENABLED: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: AnyHttpUrl | None = None
 
     @property
     def database_dsn(self) -> PostgresDsn:
@@ -42,6 +44,23 @@ class MigrationSettings(BaseSettings):
             return PostgresDsn(self.MIGRATIONS_DATABASE_URL.get_secret_value())
         except ValueError:
             raise ValueError("MIGRATIONS_DATABASE_URL must be a valid PostgreSQL URL") from None
+
+
+class WorkerSettings(BaseSettings):
+    """Settings for the Arq worker; no job reads the database yet, so it needs only Redis."""
+
+    model_config = SettingsConfigDict(env_file=None, case_sensitive=True, hide_input_in_errors=True)
+
+    ENVIRONMENT: Literal["local", "ci", "dev"]
+    REDIS_URL: SecretStr
+    OTEL_EXPORTER_OTLP_ENDPOINT: AnyHttpUrl | None = None
+
+    @property
+    def redis_dsn(self) -> RedisDsn:
+        try:
+            return RedisDsn(self.REDIS_URL.get_secret_value())
+        except ValueError:
+            raise ValueError("REDIS_URL must be a valid Redis URL") from None
 
 
 @lru_cache(maxsize=1)
