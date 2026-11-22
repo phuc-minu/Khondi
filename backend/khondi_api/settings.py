@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import PostgresDsn, RedisDsn, SecretStr
+from pydantic import AnyHttpUrl, PostgresDsn, RedisDsn, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "ci", "dev"]
     DATABASE_URL: SecretStr
     REDIS_URL: SecretStr
+    DIAGNOSTICS_ENABLED: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: AnyHttpUrl | None = None
 
     @property
     def database_dsn(self) -> PostgresDsn:
@@ -51,6 +53,7 @@ class WorkerSettings(BaseSettings):
 
     ENVIRONMENT: Literal["local", "ci", "dev"]
     REDIS_URL: SecretStr
+    OTEL_EXPORTER_OTLP_ENDPOINT: AnyHttpUrl | None = None
 
     @property
     def redis_dsn(self) -> RedisDsn:

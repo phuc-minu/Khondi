@@ -17,6 +17,7 @@ from pydantic import RedisDsn, ValidationError
 
 from khondi_api.jobs import JOBS
 from khondi_api.settings import WorkerSettings
+from khondi_api.telemetry import setup_telemetry
 
 MAX_TRIES = 3
 JOB_TIMEOUT_SECONDS = 300
@@ -42,6 +43,8 @@ def create_worker(
         health_check_interval=HEALTH_CHECK_INTERVAL_SECONDS,
         retry_jobs=True,
         allow_abort_jobs=False,
+        # Results hold job content (R1, R4); the traced job logs its own end line.
+        log_results=False,
     )
 
 
@@ -56,7 +59,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
-        dsn = WorkerSettings().redis_dsn  # type: ignore[call-arg]  # fields come from env
+        settings = WorkerSettings()  # type: ignore[call-arg]  # fields come from env
+        dsn = settings.redis_dsn
     except ValidationError as error:
         names = ", ".join(str(issue["loc"][0]) for issue in error.errors())
         sys.stderr.write(f"Missing or invalid setting: {names}\n")
@@ -66,6 +70,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     if args.check:
         return check(dsn)
+    setup_telemetry("khondi-worker", settings.ENVIRONMENT, settings.OTEL_EXPORTER_OTLP_ENDPOINT)
     create_worker(dsn, JOBS).run()
     return 0
 

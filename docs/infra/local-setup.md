@@ -72,6 +72,12 @@ The `worker` service runs background jobs with [Arq](https://arq-docs.helpmanual
 - **Restarts:** on `docker compose stop` or `restart`, the worker cancels running jobs and puts them back on the queue, then exits within a few seconds. Those jobs run again on the next start.
 - **Delivery is at least once.** Because of restarts, a job can run more than once. Every job must be safe to run twice, and code that queues a job should pass a stable job ID (`_job_id`) so the same job isn't queued twice.
 - **Redis keeps no data on disk.** Restarting the `redis` container drops queued jobs and stored results. Anything that must survive belongs in PostgreSQL.
+- **Try it:** with `DIAGNOSTICS_ENABLED=true` (the `.env.example` value), the api queues a test job and shows its result:
+  ```sh
+  curl -X POST http://127.0.0.1:8000/v1/diagnostics/echo -H "Content-Type: application/json"     -H "traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01" -d '{"message":"hello"}'
+  curl http://127.0.0.1:8000/v1/diagnostics/echo/<job_id from the first response>
+  ```
+  The result's `trace_id` is the one from your `traceparent` header. Add `-H "Idempotency-Key: my-key"` to see a repeat request return `"created": false`. These routes have no authentication, so keep the setting off anywhere other people can reach the api.
 - **Logs:** for now the worker logs only warnings and errors. Job-level JSON logs arrive with OpenTelemetry (T0007).
 
 ## Database roles

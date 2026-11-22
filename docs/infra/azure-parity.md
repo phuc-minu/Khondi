@@ -23,6 +23,7 @@ T0003 establishes the shared service configuration contract. Local Compose and A
 | `ENVIRONMENT` | api, web, worker | yes | `.env` | Container App env | no |
 | `DATABASE_URL` | api (as `khondi_app`) | yes | `.env` | Key Vault reference | yes |
 | `REDIS_URL` | api, worker | yes | `.env` | Key Vault reference (the same secret for both) | yes |
+| `DIAGNOSTICS_ENABLED` | api | no (default `false`) | `.env` (`true` locally) | Container App env, `false` in dev unless Phil turns it on: the routes have no authentication | no |
 | `API_BASE_URL` | web | yes | `.env` | Container App env | no |
 | `MIGRATIONS_DATABASE_URL` | migrate | yes | `.env` | Key Vault reference, read only by the migrate job | yes |
 | `POSTGRES_APP_PASSWORD` | local `postgres` init script only | yes (local) | `.env` | none: the T0009 runbook sets the `khondi_app` password in Key Vault | local value only |
