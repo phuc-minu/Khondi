@@ -72,12 +72,24 @@ def main(
             answer = read(f"Type {CONFIRMATION} to continue: ")
         except EOFError:
             answer = ""
-        if answer.strip() != CONFIRMATION:
+        if answer != CONFIRMATION:
             out.write("Aborted; nothing was deleted.\n")
             return 1
 
+    # --project-name pins the teardown to the project listed above; otherwise
+    # COMPOSE_PROJECT_NAME in the shell or .env would override compose.yaml's name.
     down = run(
-        [docker_path, "compose", "-f", str(COMPOSE_FILE), "down", "--volumes", "--remove-orphans"]
+        [
+            docker_path,
+            "compose",
+            "--project-name",
+            PROJECT,
+            "-f",
+            str(COMPOSE_FILE),
+            "down",
+            "--volumes",
+            "--remove-orphans",
+        ]
     )
     if down.returncode != 0:
         err.write(f"docker compose down failed: {down.stderr.strip()}\n")
