@@ -69,7 +69,9 @@ def test_exact_confirmation_deletes_volumes() -> None:
     assert fake.calls[-1][-3:] == ["down", "--volumes", "--remove-orphans"]
 
 
-@pytest.mark.parametrize("reply", ["", "reset", "yes", "RESET please", "RESE"])
+@pytest.mark.parametrize(
+    "reply", ["", "reset", "yes", "RESET please", "RESE", " RESET", "RESET ", "	RESET"]
+)
 def test_any_other_answer_deletes_nothing(reply: str) -> None:
     fake = FakeDocker()
     code, out, _ = run_reset(fake, reply=reply)
@@ -111,6 +113,16 @@ def test_lists_only_this_projects_volumes() -> None:
     fake = FakeDocker()
     run_reset(fake)
     assert "label=com.docker.compose.project=khondi" in fake.calls[0]
+
+
+def test_deletes_the_same_project_it_listed(monkeypatch: pytest.MonkeyPatch) -> None:
+    # COMPOSE_PROJECT_NAME would otherwise override compose.yaml's `name: khondi`.
+    monkeypatch.setenv("COMPOSE_PROJECT_NAME", "someone-else")
+    fake = FakeDocker()
+    run_reset(fake)
+    down = fake.calls[-1]
+    assert down[down.index("--project-name") + 1] == "khondi"
+    assert down.index("--project-name") < down.index("down")
 
 
 def test_no_volumes_means_nothing_to_do() -> None:
