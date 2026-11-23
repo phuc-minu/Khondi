@@ -6,6 +6,7 @@ test.describe("site shell", () => {
     const origins = new Set<string>();
     page.on("request", (request) => origins.add(new URL(request.url()).origin));
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
     expect([...origins]).toEqual([new URL(page.url()).origin]);
     await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
     await expect(page.getByRole("main")).toHaveAttribute("id", "main");

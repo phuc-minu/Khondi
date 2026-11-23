@@ -13,7 +13,7 @@ export default defineConfig({
   use: { baseURL: process.env.BASE_URL, trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
-    { name: "mobile", use: { ...devices["Chromium"], viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
+    { name: "mobile", use: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
   ],
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
