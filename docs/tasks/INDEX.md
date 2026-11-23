@@ -15,7 +15,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0010](T0010-website-epic53/) | Public website: three pages and budget-first flow (epic #53) | spec signed off under delegation (PR #61) | this PR | (T0011–T0015) | `02-claude-delegated-signoff.md` |
 | [T0011](T0011-site-shell/) | Website site shell and test harness (#55, #60) | needs-claude-review | #61 (covered by T0010 signoff) | draft PR #78 | `06-codex-qa-followup.md` |
 | [T0012](T0012-about-page/) | About page (#59) | merged | this PR (delegated) | #79 (merged) | `04-claude-review-r1.md` |
-| [T0013](T0013-new-orleans-example/) | Illustrative $3,000 New Orleans trip (#58) | needs-claude-review; authorship correction recorded, Codex cross-check required | this PR (delegated) | draft PR | `05-claude-authorship-correction.md` |
+| [T0013](T0013-new-orleans-example/) | Illustrative $3,000 New Orleans trip (#58) | Claude review PASS; authorship correction recorded, Codex cross-check required | this PR (delegated) | draft PR | `04-claude-review-r1.md` (PASS), `05-claude-authorship-correction.md` |
 | [T0014](T0014-budget-starter/) | Budget-first trip starter (#56) | spec signed off under delegation; waits for T0013 | this PR (delegated) | | `01-spec.md` |
 | [T0015](T0015-landing/) | Landing page (#57, #54) | spec signed off under delegation; waits for T0014 | this PR (delegated) | | `01-spec.md` |
 
