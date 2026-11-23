@@ -116,5 +116,5 @@ Claude and Codex are not wired to each other automatically. A handoff starts in 
 
 ## Limits that stop the loop
 
-- **Three rework rounds at most.** If review round 3 still says `CHANGES_REQUIRED`, Claude sets `state:blocked` and asks Phil whether to re-scope, split or stop, instead of starting round 4.
+- **Two review rounds at most.** If round 2 still has a blocking finding, Claude sets `state:blocked` and asks Phil whether to accept with a follow-up issue, re-scope, split or stop, instead of starting round 3. Non-blocking findings never force a round. Merge tiers and stacked-PR rules are in [merge-policy.md](../merge-policy.md).
 - **Scope change means Gate 1 again.** If Codex finds the spec cannot be built as written, Codex stops, writes the problem in the handoff file, sets `state:blocked`, and Claude revises the spec for Phil's approval. Codex never quietly builds something different.

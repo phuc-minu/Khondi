@@ -1,6 +1,6 @@
 # Khondi AI collaboration and approval workflow
 
-**Status: PROPOSED — awaiting Product Owner approval.** This document becomes binding for agents only after review/merge. Do not interpret a GitHub issue, draft PR, code generation, or absence of objection as approval.
+**Status: in force.** Merge tiers, the review-round cap and stacked-PR rules are in [merge-policy.md](merge-policy.md); once that is merged, Tier A replaces the per-PR Gate 2 below. Do not interpret a GitHub issue, draft PR, code generation, or absence of objection as approval.
 
 ## Temporary owner-delegated website exception (2026-11-20)
 
