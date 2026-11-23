@@ -1,3 +1,3 @@
 export default function Home(): React.ReactElement {
-  return <main>Khondi</main>;
+  return <div>Khondi</div>;
 }
