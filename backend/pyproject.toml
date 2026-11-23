@@ -25,5 +25,8 @@ select = ["E", "F", "I"]
 strict = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=khondi_api --cov-fail-under=85"
-markers = ["integration: needs the real PostgreSQL and Redis services from the CI backend job"]
+addopts = '--cov=khondi_api --cov-fail-under=85 -m "not stack"'
+markers = [
+    "integration: needs the real PostgreSQL and Redis services from the CI backend job",
+    "stack: needs the running Compose stack (T0008); run with -m stack --no-cov",
+]

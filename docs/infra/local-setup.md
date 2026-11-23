@@ -4,7 +4,7 @@ The local stack is defined in [`compose.yaml`](../../compose.yaml). It runs the 
 
 ## Prerequisites
 - **Docker Desktop** with the WSL 2 backend, running in **Linux containers** mode (tray icon → *Switch to Linux containers* if it says Windows).
-- **Python 3.12** for the reset script only. The apps themselves run in containers.
+- **Python 3.12** for the reset script, and **[uv](https://docs.astral.sh/uv/)** for the stack checks (see "Checking the running stack"). The apps themselves run in containers.
 - **Resources**, measured on 2026-11-20 on Windows 11 with Docker Desktop:
 
   | What | Measured |
@@ -140,6 +140,37 @@ python scripts/dev-reset.py
 2. It deletes them only if you type `RESET` exactly. Any other answer exits without deleting anything.
 
 **Read the list before typing `RESET`.** It covers every volume labelled with the `khondi` project, including volumes from older experiments under the same name.
+
+## Checking the running stack
+The stack suite in `backend/tests/stack/` checks a running stack: health and readiness, migrations, the api's database role, backup and restore, and data surviving `down` and `up`. CI runs the same suite after `docker compose up --wait --build`.
+
+Start the stack first, then, from `backend/`:
+
+Git Bash:
+```sh
+export STACK_API_URL=http://127.0.0.1:8000
+export STACK_WEB_URL=http://127.0.0.1:3000
+export STACK_DATABASE_URL=postgresql://khondi:khondi@127.0.0.1:5432/khondi
+uv sync --frozen
+uv run pytest -m stack --no-cov
+```
+PowerShell:
+```powershell
+$env:STACK_API_URL = "http://127.0.0.1:8000"
+$env:STACK_WEB_URL = "http://127.0.0.1:3000"
+$env:STACK_DATABASE_URL = "postgresql://khondi:khondi@127.0.0.1:5432/khondi"
+uv sync --frozen
+uv run pytest -m stack --no-cov
+```
+- **The values** are the `.env.example` defaults. If you changed a `KHONDI_*_PORT` or a password in `.env`, change the matching `STACK_*` value too, and keep that `KHONDI_*_PORT` set in the shell. The suite restarts the stack, and `docker compose` reads those variables again when it does.
+- **`STACK_DATABASE_URL`** is the schema owner (`POSTGRES_USER`), because the suite creates and drops its own test objects.
+- **What the suite changes:**
+  - It runs `docker compose down` and `up --wait` once, and `docker compose run --rm migrate`.
+  - It creates and then drops tables named `t0008_*` and a scratch database `t0008_restore_check`. It touches nothing else.
+  - It never deletes volumes and never runs `dev-reset.py`, so your data stays.
+
+  Even so, don't run it while you are in the middle of something on the stack that a restart would interrupt.
+- **The plain `uv run pytest`** in `backend/` skips these tests, because they need a running stack.
 
 ## Troubleshooting
 - **`bind: An attempt was made to access a socket in a way forbidden` or `port is already allocated`.**
