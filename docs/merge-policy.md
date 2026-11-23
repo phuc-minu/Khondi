@@ -1,44 +1,63 @@
-# Merge policy: tiers, review rounds and stacked PRs
+# Merge policy: Claude merge gate, issue closure, review rounds and stacked PRs
 
-**Status: PROPOSED — takes effect only when the Product Owner merges this PR.** Until then the gates in [ai-workflow.md](ai-workflow.md) apply unchanged.
+**Status: in force once PR #80 merges.** It records the Product Owner's decision of 2026-11-23, [D0001](decisions/D0001-claude-merges-code.md): *"Have Claude merge code, remove Phil as code reviewer for this project."* It applies to every PR in the repository, not only the website epic.
 
-This policy lets agents merge low-risk work without waiting for Phil, and keeps Phil's review for work where a mistake is expensive or hard to undo. Phil approves the policy once, by merging this PR. It replaces per-PR Gate 2 for Tier A only.
+Phil does not review code. He is never requested or assigned as a PR reviewer. Claude reviews, runs QA, decides and performs the merge. Phil still decides the things listed under [What still needs Phil](#what-still-needs-phil).
 
-## Tier A: agents may merge
+## Gate 2: the Claude merge gate
 
-A PR is Tier A only if **all** of these hold:
+Gate 2 used to be the owner's code review. It is now this checklist. Claude merges a PR only when **every** item holds on the PR's **current head SHA**:
 
-1. Its task has a merged spec (`01-spec.md`), and the diff stays inside that spec's scope.
-2. It touches none of the Tier B paths or topics below.
-3. It adds no dependency, or the spec already approved that exact dependency.
-4. Claude review and Claude QA both give a passing verdict on the PR's **final head SHA**, and every required check is green on that same SHA.
-5. No finding labelled blocking is open.
+1. **Approved scope.** The task has an approved spec (Gate 1, or the epic #53 delegated sign-off), and the diff stays inside it. Nothing was added that the spec did not cover: no new dependency, provider, cost or product scope beyond what was approved.
+2. **Independent Claude code review** using the [`khondi-architect-reviewer`](../.claude/skills/khondi-architect-reviewer/SKILL.md) skill gives `APPROVE_FOR_MERGE` on this SHA, recorded in `NN-claude-review-rK.md`. The reviewing Claude session is not the session that wrote the code.
+3. **Claude Senior QA** using the [`khond-senior-qa`](../.claude/skills/khond-senior-qa/SKILL.md) skill passes on this SHA, with real test output and Playwright evidence for user-facing changes.
+4. **Senior Designer fidelity review** passes for any UI change.
+5. **Codex cross-check** passes when Claude wrote the code. From T0014 on Codex implements and Claude reviews; when that is reversed, Codex reviews the Claude-authored diff before merge. A GitHub Codex bot review does not replace the Claude review in item 2.
+6. **Every required check is green** on this SHA (see [branch-protection.md](branch-protection.md)), and the branch is up to date with `main`. A skipped, pending, cancelled or missing required check is not green.
+7. **No blocking finding is open,** and every review thread is resolved. Non-blocking findings are fixed or have a linked follow-up issue.
+8. **Nothing on the hard boundary** is in the diff unless Phil has explicitly approved it (see below), and that approval is linked.
+9. **The PR body uses `Refs #N`** for its issues and contains no `Closes`, `Fixes` or `Resolves` keyword (see [Closing issues](#closing-issues)).
 
-When all five hold, Claude marks the PR ready and squash-merges it, then records the merge in the task folder (`NN-merge-record.md`: PR, head SHA, verdicts, check results) and updates `INDEX.md`. A push after the verdicts voids them; re-run review and QA on the new SHA.
+Any push after the verdicts voids them; review and QA run again on the new SHA. The single exception is the merge record: if the only change since the reviewed SHA is the new `NN-merge-record.md` file plus its `INDEX.md` line, the verdicts carry over, and the required checks must still be green on the new head. The merging Claude proves this with `git diff --name-only <reviewed-sha> <head-sha>`.
 
-The website delegation in AGENTS.md (epic #53) is a Tier A authorization for that epic only and stays as written.
+### How Claude merges
 
-## Tier B: Phil decides
+1. Write `NN-merge-record.md` from [the template](tasks/_templates/merge-record.md) on the PR branch: reviewed SHA, review and QA files, designer and Codex cross-check results, required-check run link, hard-boundary statement. Set the task to `merged` in `INDEX.md` in the same commit.
+2. Wait for the required checks on the new head, then mark the PR ready and set `state:ready-to-merge`.
+3. Squash-merge pinned to the head SHA, so a late push cannot slip in: `gh pr merge <n> --squash --match-head-commit <head-sha>`.
+4. Never use admin merge, bypass rules, or enable auto-merge.
+5. Close the linked issues only as described in the next section.
 
-Phil reviews and merges when a PR does any of the following:
+If a check is red or stale, or anything in the gate fails, Claude does not merge. It sets `state:needs-rework` or `state:blocked` and says why on the PR.
 
-- changes `infra/`, `compose.yaml`, `.github/`, migrations, or the files that define these rules (`AGENTS.md`, `docs/ai-workflow.md`, `docs/merge-policy.md`, `docs/branch-protection.md`, `docs/tasks/README.md`);
-- adds or changes a provider, an external service, a cost, or a dependency not approved in the spec;
-- touches secrets, credentials, authentication, personal data, payment or booking;
-- changes CI, lint, type-check or coverage settings (Q16);
-- deploys, provisions or deletes anything, or is otherwise destructive;
-- widens product scope beyond the spec.
+## Closing issues
 
-If it is unclear which tier applies, it is Tier B. Gate 1 (spec approval) still applies to every task not already covered by an approved epic scope, and a spec for a Tier B change needs Phil's approval.
+An issue is closed only after its PR has merged **and** the end-to-end tests have passed on `main` after the merge.
+
+- PR bodies reference issues as `Refs #N`. Never write `Closes #N`, `Fixes #N` or `Resolves #N` (or their variants), because GitHub would close the issue at merge time, before `main` is verified.
+- After merging, the merging Claude finds the `Quality gates` workflow run triggered by the push to `main` whose commit is the merge commit. Because runs on `main` cancel each other (the workflow's `concurrency` setting), if that run was cancelled, use the first later completed run on `main` whose commit contains the merge commit.
+- The `e2e` job in that run must have concluded **success**. Skipped, cancelled or failed does not count.
+- Claude then closes each referenced issue with a comment that names the PR, the merge commit, and links the `main` run, for example: `Merged in #81 (abc1234). Post-merge e2e passed on main: <run URL>.`
+- If `e2e` fails on `main`, the issue stays open. Claude comments with the failing run, and the fix goes through a new PR under this same policy.
+- An epic issue closes when all its child issues are closed.
+
+## What still needs Phil
+
+The decision removed Phil from code review only. These remain his, unchanged:
+
+- **Gate 1 plan and spec approval** as documented in [ai-workflow.md](ai-workflow.md) and [tasks/README.md](tasks/README.md). Phil approves a spec by merging its spec PR; Claude does not merge spec PRs for him. The website delegation for epic #53 continues for that epic's plans as written in [AGENTS.md](../AGENTS.md).
+- **The hard boundary.** Phil's explicit approval is required for: deployments to any environment; Azure provisioning or anything that incurs charges; secrets and credentials; external provider credentials; authentication and personal data (PII) handling; payments and booking; destructive actions. When a PR touches one of these, Claude merges only after Phil's approval is recorded, either in the approved Gate 1 spec that names it or in an `NN-owner-decision.md` file from [the template](tasks/_templates/owner-decision.md), and the PR waits under `state:needs-owner-approval` until then. Merging never authorizes running a deployment, provisioning or destructive action; each still needs its own action-specific approval at the time it is run.
+- **Product scope.** Anything that widens scope beyond the approved spec returns to Gate 1.
+- **Loosening the gates.** Changing CI, lint, type-check or coverage settings (Q16), or this policy's hard boundary, needs its own approved task.
+
+If it is unclear whether something is on the hard boundary, treat it as if it is and ask Phil.
 
 ## Review rounds
 
 - Each finding is **blocking** or **non-blocking**. Only blocking findings force another round. Non-blocking findings become follow-up issues linked from the review file and do not hold the PR.
-- At most **two** review rounds. If round 2 still has a blocking finding, the PR gets `state:blocked` and Phil decides in one step: accept with a follow-up issue, re-scope, split, or stop. There is no round 3.
+- At most **two** review rounds. If round 2 still has a blocking finding, Claude sets `state:blocked` and does not merge. Claude chooses one of: split the blocked part into its own task, stop the PR, or (if the fix changes scope) return the spec to Gate 1 for Phil. There is no round 3, and a blocking finding is never waived to make a merge.
 - A reviewer does not raise a finding that lint, type-check or the quality jobs already enforce. Fix those in CI, not in review.
-- Codex answers every finding by ID in its rework file, as today.
-
-This replaces the three-round limit in `docs/tasks/README.md`.
+- Codex answers every finding by ID in its rework file.
 
 ## Stacked PRs
 
@@ -49,8 +68,7 @@ Prefer small independent PRs that branch from `main`. Stack only when PR B canno
 3. Never merge a child into a branch other than `main`. Work merged into a feature branch is not on `main` and does not count as merged.
 4. Spec-only and docs PRs never stack.
 5. Keep stacks to two PRs. A longer stack means the task should be split differently.
-6. Tier is decided per PR, and a child is Tier B if its parent is Tier B.
 
 ## Branch protection
 
-The required settings are in [branch-protection.md](branch-protection.md). Tier A merging depends on them: without them nothing stops an agent merging past a failing or stale check.
+The settings this policy relies on are in [branch-protection.md](branch-protection.md). Without required, up-to-date status checks, nothing would stop a merge past a failing or stale check.

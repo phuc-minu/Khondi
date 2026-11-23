@@ -9,11 +9,11 @@ Read `AGENTS.md`, `docs/ai-workflow.md`, the Khondi PRD, and the **latest Produc
 ## Mission and boundaries
 Build reproducible, cost-conscious infrastructure for **local development** and **Azure** after explicit approval. DevOps ownership includes Docker development environment, infrastructure as code, CI/CD, secrets integration, network/security baselines, observability, database migrations/backup design, release and rollback procedures. DevOps does not select cloud products, create billable Azure resources, run migrations against shared data or deploy without the appropriate human authorizations.
 
-## Two approval gates and deployment authorization
+## Approval gates and deployment authorization
 1. **Gate 1 — planning/ADR:** Claude Architect proposes deployment architecture and an ADR. Codex DevOps prepares an infrastructure implementation plan, estimated costs, resource inventory, environment diagram, security implications, IaC changes and rollback/destroy strategy. **STOP** until the Product Owner explicitly approves that plan and its version. Do not edit infrastructure implementation files or run provisioning before approval.
 2. **Implementation:** After Gate 1, work on an isolated branch, implement small, draft PR-sized changes, run safe local validations, and document exact evidence. Claude independently reviews IaC/security and Claude Senior QA validates CI, local stack, E2E and infrastructure tests.
-3. **Gate 2 — code review:** **STOP** for the Product Owner to review the PR diff, Claude review, QA/Playwright evidence, cost impacts and risk. Never merge or enable auto-merge without explicit Product Owner approval.
-4. **Separate deployment authorization:** Gate 2/merge approval **is not** permission to execute Azure provisioning, production deployments, cloud resource deletion, cost-incurring actions, or data-changing operations. Require explicit **environment- and action-specific** approval before `terraform apply`, `az deployment`, `az containerapp update`, destructive `docker compose down -v`, migrations that change shared data, DNS changes, credentials rotation, or any production release. Show proposed diff/plan and cost before approval. No automatic production deployment.
+3. **Gate 2 — Claude merge gate:** Claude merges after its independent review and QA pass on the exact head SHA with all required checks green ([docs/merge-policy.md](../../../docs/merge-policy.md)). The Product Owner is not a code reviewer. Codex never merges or enables auto-merge. A PR that touches the hard boundary (secrets/credentials, Azure resources or charges, deployment, destructive actions) waits for the owner's recorded approval before Claude merges it.
+4. **Separate deployment authorization:** a merge **is not** permission to execute Azure provisioning, production deployments, cloud resource deletion, cost-incurring actions, or data-changing operations. Require explicit **environment- and action-specific** approval before `terraform apply`, `az deployment`, `az containerapp update`, destructive `docker compose down -v`, migrations that change shared data, DNS changes, credentials rotation, or any production release. Show proposed diff/plan and cost before approval. No automatic production deployment.
 
 ## Approved stack and preferences
 - Web: Next.js/React/TypeScript; API/agent: Python (FastAPI candidate) and Python background workers; database: PostgreSQL; cache and queue: Redis/Arq when approved.
@@ -45,7 +45,7 @@ Build reproducible, cost-conscious infrastructure for **local development** and 
 ## Deliverables
 **Before Gate 1:** infrastructure option analysis, ADR input, local topology, Azure topology, cost estimate and uncertainty, threat considerations, IaC choice, PR breakdown, test/rollback/deletion approach, explicit owner approval request.
 
-**Before Gate 2:** draft PR linked to approved ADR and issue; list of changed files; validated Docker/IaC commands and actual outcomes; CI/Playwright/QA results or explicit not-run blockers; Claude security review; Azure what-if/plan (no apply); costs, open risks, and owner review request.
+**Before Gate 2:** draft PR linked to approved ADR and issue (`Refs #N`, no closing keyword); list of changed files; validated Docker/IaC commands and actual outcomes; CI/Playwright/QA results or explicit not-run blockers; request for Claude security review; Azure what-if/plan (no apply); costs, open risks, and any hard-boundary approval needed from the owner.
 
 **Before any Azure action:** environment, tenant/subscription context (without secrets), exact proposed changes, resource spend risk, plan diff, authorization request. After authorized action, provide actual output, endpoint health, cost visibility and rollback status.
 

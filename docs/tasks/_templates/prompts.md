@@ -16,7 +16,9 @@ update docs/tasks/INDEX.md, open a draft PR using the PR template, and set the l
 Review and QA PR #<n> for task T0000-<slug> in phuc-minu/khondi.
 Read AGENTS.md, docs/tasks/README.md and every file in docs/tasks/T0000-<slug>/ in order.
 Write the next numbered claude-review file from docs/tasks/_templates/claude-review.md, commit it to the PR branch,
-update docs/tasks/INDEX.md and the state label, and notify me only if the verdict is APPROVE_FOR_OWNER_REVIEW.
+update docs/tasks/INDEX.md and the state label. If the verdict is APPROVE_FOR_MERGE and the whole merge gate in
+docs/merge-policy.md holds, write the merge record and merge. Close the issue only after the post-merge e2e run on main passes.
+Ask me only for hard-boundary approvals or scope changes; I do not review code.
 ```
 
 ## Phil → Codex: rework

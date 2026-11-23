@@ -20,9 +20,14 @@
     "description": "Claude found blocking issues; Codex's turn"
   },
   {
-    "name": "state:ready-for-phil",
+    "name": "state:ready-to-merge",
     "color": "0e8a16",
-    "description": "Claude approved for owner review; Phil's turn (Gate 2)"
+    "description": "Claude review and QA passed on the head SHA; the merging Claude's turn"
+  },
+  {
+    "name": "state:needs-owner-approval",
+    "color": "f9d0c4",
+    "description": "Hard-boundary item needs Phil's explicit approval; not a code review"
   },
   {
     "name": "state:blocked",

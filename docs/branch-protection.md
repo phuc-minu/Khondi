@@ -1,40 +1,41 @@
 # Branch protection for `main`
 
-Set these in GitHub under **Settings → Branches → Add branch ruleset** (or a classic rule) targeting `main`. Only the repository owner can change them. They are a setting, not code, so this file records what to configure.
+These are repository settings, not code. Only the repository owner can change them, and agents never change them through the API or bypass them. This file records what is configured and what the [merge policy](merge-policy.md) relies on.
 
-| Setting | Value | Why |
+## Current `Main` ruleset (read 2026-11-23)
+
+The active ruleset `Main` targets `refs/heads/main` with no bypass actors.
+
+| Setting | Value | Why it matters under the Claude merge gate |
 | --- | --- | --- |
 | Require a pull request before merging | On | No direct pushes to `main` |
-| Required approving reviews | 0 | Agents merge Tier A without Phil; Tier B is enforced by CODEOWNERS below |
-| Require review from Code Owners | On | Applies only to paths listed in `.github/CODEOWNERS` |
-| Dismiss stale approvals on new commits | On | An approval applies to the head SHA it was given on |
-| Require status checks to pass | On | See the list below |
-| Require branches to be up to date before merging | On | Blocks merging on a stale check |
-| Require conversation resolution | On | Review threads must be resolved |
+| Required approving reviews | 0 | Phil is not a code reviewer; Claude's verdicts live in the task folder, not as GitHub approvals |
+| Require review from Code Owners | On | Harmless once `.github/CODEOWNERS` lists no owners (see below) |
+| Dismiss stale reviews on push | On | |
+| Require approval for unattributed changes | On | Left as is. If it ever blocks a Claude merge, Claude stops and asks Phil; it does not work around it |
+| Require conversation resolution | On | Review threads must be resolved (merge gate item 7) |
+| Required status checks | `detect`, `diff-hygiene`, `repo-tooling`, `secret-scan`, `backend`, `frontend`, `images`, `e2e`, `stack` | Merge gate item 6 |
+| Require branches to be up to date | On (strict) | Blocks merging on a stale check |
 | Require linear history | On | Matches squash merging |
 | Block force pushes | On | |
 | Restrict deletions | On | |
-| Allow bypass | Nobody | "Do not bypass protections" stays true |
+| Bypass | Nobody | |
 
-Required status checks, from `.github/workflows/quality.yml`: `detect`, `diff-hygiene`, `repo-tooling`, `secret-scan`, `backend`, `frontend`, `images`, `e2e`, `stack`. Confirm each name against a recent PR's check list when you add them, because a check that never reports will block every merge.
+The disabled ruleset `RuleSet-Limited` has no effect.
 
-Repository settings, under **Settings → General**:
+## CODEOWNERS
 
-- Pull Requests: allow squash merging only, and turn on **Automatically delete head branches**.
-- Leave **Allow auto-merge** off until the Tier A flow has run cleanly for a few PRs.
+Until PR #80, `.github/CODEOWNERS` contained `* @phuc-minu`. Combined with **Require review from Code Owners**, that is what forced Phil's review on every PR. PR #80 removes the rule, so no path has a code owner and GitHub requires no owner review. Phil is not added back for any path, including `infra/` or `.github/`: the hard-boundary items in the merge policy are decided by Phil's explicit approval of the action or spec, recorded in the task folder, not by a code review.
 
-`.github/CODEOWNERS` change, to follow this PR as its own Tier B change: replace `* @phuc-minu` with the Tier B paths so Phil is requested only where the policy says so.
+## Optional owner changes
 
-```text
-/infra/                  @phuc-minu
-/compose.yaml            @phuc-minu
-/.github/                @phuc-minu
-/backend/**/migrations/  @phuc-minu
-/AGENTS.md               @phuc-minu
-/docs/ai-workflow.md     @phuc-minu
-/docs/merge-policy.md    @phuc-minu
-/docs/branch-protection.md @phuc-minu
-/docs/tasks/README.md    @phuc-minu
-```
+None of these is required for the policy to work. Phil may make them at any time:
+
+- **Turn off "Require review from Code Owners".** With an empty CODEOWNERS it does nothing; turning it off just removes a setting that no longer applies. Leaving it on is also fine.
+- **Restrict allowed merge methods to squash.** The ruleset currently allows merge, squash and rebase; linear history already blocks merge commits, and Claude always squash-merges.
+- **Turn on "Automatically delete head branches"** under Settings → General → Pull Requests.
+- **Delete the old `state:ready-for-phil` label.** The `Sync labels` workflow creates and updates labels from `.github/labels.json` but never deletes them.
+
+Keep **Allow auto-merge** off and keep the required status checks and bypass list as they are; the merge gate depends on them. If a required check is renamed in `.github/workflows/quality.yml`, update this list in the ruleset in the same change, because a check that never reports blocks every merge.
 
 The repository is currently **public**, while `ai-workflow.md` says it is intended to start private. Check that nothing confidential is committed before relying on it either way.
