@@ -86,6 +86,35 @@ test.describe("example trip page", () => {
     expect(result.violations).toEqual([]);
   });
 
+  for (const width of [320, 375, 414]) {
+    test(`cost table wraps only at word boundaries at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(path);
+      const result = await page.evaluate(() => {
+        const brokenWords: string[] = [];
+        for (const cell of document.querySelectorAll("table tbody th, table tbody td")) {
+          const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const text = node.textContent ?? "";
+            for (const match of text.matchAll(/\S+/g)) {
+              const range = document.createRange();
+              range.setStart(node, match.index ?? 0);
+              range.setEnd(node, (match.index ?? 0) + match[0].length);
+              if (range.getClientRects().length > 1) brokenWords.push(match[0]);
+            }
+          }
+        }
+        const wrapper = document.querySelector("table")?.parentElement;
+        return {
+          brokenWords,
+          tableFits: wrapper ? wrapper.scrollWidth <= wrapper.clientWidth : false,
+          pageFits: document.documentElement.scrollWidth <= window.innerWidth,
+        };
+      });
+      expect(result).toEqual({ brokenWords: [], tableFits: true, pageFits: true });
+    });
+  }
+
   test("About Khondi button leads to the about page", async ({ page }) => {
     await page.goto(path);
     await page.getByRole("main").getByRole("link", { name: "About Khondi" }).click();

@@ -4,11 +4,11 @@
 | --- | --- |
 | Task | T0013-new-orleans-example |
 | Step | 04 · Code review and QA, round 1 |
-| Author | Claude (independent code reviewer; not the PR author) |
-| For | Codex / PR author (optional polish), then merge decision under the website delegation |
-| Date (UTC) | 2026-11-23 15:31 |
+| Author | Claude (independent code reviewer in a separate session; not the PR author session. The code was also Claude-authored; see `05-claude-authorship-correction.md`) |
+| For | PR author (optional polish), the required Codex cross-check, then merge decision under the website delegation |
+| Date (UTC) | 2026-11-23 15:31 (head-movement addendum 15:34) |
 | PR | #81 |
-| Commit reviewed | `001ff19796cac3852a811d77499cf9bafb2e34de` |
+| Commit reviewed | `001ff19796cac3852a811d77499cf9bafb2e34de` (application code). The verdict also applies to `aac5e64c0f3d1b249b13e36a72134122049de981` and `5914ca51c842fbe094b8f7e40049a1859007d4ba`, which change docs only (see "Head movement") |
 | Base | `main` @ `0db35b5` (T0012 merge, PR #79); merge-base equals current `origin/main` |
 | Responds to | `03-codex-handoff.md` |
 | Verdict | `APPROVE_FOR_OWNER_REVIEW` (review verdict PASS; no blocking or major findings) |
@@ -133,16 +133,28 @@ Run on `001ff19796cac3852a811d77499cf9bafb2e34de`. As an independent reviewer, I
 | 9 | CI `frontend` and `e2e` pass on head | `gh pr checks 81` on `001ff19` | pass |
 
 ## Head movement
-The PR head was `001ff19796cac3852a811d77499cf9bafb2e34de` at the start and at the end of this review. There is no delta to review.
+The full review was done on `001ff19796cac3852a811d77499cf9bafb2e34de`. Afterwards the head moved twice. I checked both deltas against `001ff19`, and both change docs only:
+
+| Commit | Change | Files | Code, tests or config touched |
+| --- | --- | --- | --- |
+| `aac5e64c0f3d1b249b13e36a72134122049de981` | Records that Claude authored this PR's code and handoff docs (and T0012's); requires a Codex cross-check before merge | `docs/tasks/INDEX.md` (T0013 row), `docs/tasks/T0013-new-orleans-example/05-claude-authorship-correction.md` (new) | none |
+| `5914ca51c842fbe094b8f7e40049a1859007d4ba` | Commits this review r1 (byte-identical to the reviewed text) and updates the INDEX row | `docs/tasks/INDEX.md` (T0013 row), `docs/tasks/T0013-new-orleans-example/04-claude-review-r1.md` (new) | none |
+
+- `git diff --name-only 001ff19..5914ca5` lists only those three files under `docs/`. The merge-base is still `0db35b5` = `origin/main`.
+- Every application-code, test and config finding above stands unchanged, and so does the verdict. It applies to `aac5e64c` and to `5914ca5`.
+- R8 is still open. The T0013 INDEX row still says "draft PR" with no number.
+- **The authorship correction affects how much weight this review carries, not its findings.** As `05-claude-authorship-correction.md` says, this is a separate Claude session checking Claude-authored code. It is not independent by model family or role. The "Codex" labels in `03-codex-handoff.md` don't describe who actually wrote the code, and that file's R4 notes stand regardless.
+- At the time of the addendum, GitHub reported no checks yet for the new head. The CI evidence above is from `001ff19`. Because the delta is docs-only, that evidence carries over to the application code, but merge still needs CI green on the final head.
 
 ## Next step
 No blocking findings. R1–R4 are worth fixing: R1 and R2 are test tightening, R3 must be handled before merge in either of the two ways given, and R4 is a doc correction. R5–R8 are optional. If the author changes only tests and docs, a quick delta check is enough, with no full re-review. Before merge under the website delegation:
-- the `images` job must finish green;
+- CI, including `images`, must finish green on the final head SHA;
 - Claude Senior QA must record its own result on the final head SHA;
+- the **Codex cross-check** required by `05-claude-authorship-correction.md` (and by the owner) must be done and recorded in the next numbered file. This Claude verdict is necessary but no longer sufficient;
 - the deviation-1 follow-up issue should be filed so T0015 isn't started against a self-contradictory spec.
 
 This review is not owner approval and doesn't authorize merging by itself.
 
 VERDICT: PASS
-Reviewed SHA: `001ff19796cac3852a811d77499cf9bafb2e34de`
+Reviewed SHA: `001ff19796cac3852a811d77499cf9bafb2e34de` (application code). The verdict also applies to `aac5e64c0f3d1b249b13e36a72134122049de981` and `5914ca51c842fbe094b8f7e40049a1859007d4ba`, which change docs only. A Codex cross-check is still required before merge.
 Findings: R1 minor `frontend/e2e/example-trip.spec.ts:80-85`; R2 minor `frontend/e2e/example-trip.spec.ts:26,48-49`; R3 minor PR #81 body ("Closes #58"); R4 minor `docs/tasks/T0013-new-orleans-example/03-codex-handoff.md:25,30-38`; R5 nit `frontend/src/components/TripAssumptions.tsx:18`; R6 nit `frontend/src/components/LinkButton.module.css:1`; R7 nit `frontend/e2e/example-trip.spec.ts:62`; R8 nit `docs/tasks/INDEX.md:18`
