@@ -10,8 +10,8 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0004](T0004-compose-stack/) | Compose stack and networking | merged | #63 (merged; design in T0002 v1) | #64 | `06-codex-review-r2.md` |
 | [T0005](T0005-postgres-migrations/) | PostgreSQL, migrations and recovery | merged | #65 (merged; design in T0002 v1) | #66, carried to main by #74 | `03-claude-devops-handoff.md` |
 | [T0006](T0006-redis-worker/) | Redis and worker | merged | #67 (merged; design in T0002 v1) | #68 | `05-codex-review-r2.md` |
-| [T0007](T0007-observability/) | Observability | PR 1 and PR 2 merged; PR 3 #73 APPROVE_FOR_OWNER_REVIEW | #70 (merged; design in T0002 v1) | PR 1 #71 carried in #69 and #68; PR 2 #72; PR 3 #73 | `11-codex-review-pr3-r2.md` |
-| [T0008](T0008-integration-tests/) | Integration tests and Playwright | spec approved (Gate 1) | #75 (merged; design in T0002 v1, four additions) | | `01-spec.md` |
+| [T0007](T0007-observability/) | Observability | merged | #70 (merged; design in T0002 v1) | PR 1 #71 (via #69, #68); PR 2 #72; PR 3 #73 | `11-codex-review-pr3-r2.md` |
+| [T0008](T0008-integration-tests/) | Integration tests and Playwright | PR 1 needs-claude-review (reviewer: Codex) | #75 (merged; design in T0002 v1, four additions) | PR 1 (this branch) | `03-claude-devops-handoff-pr1.md` |
 | [T0010](T0010-website-epic53/) | Public website: three pages and budget-first flow (epic #53) | spec signed off under delegation (PR #61) | this PR | (T0011–T0015) | `02-claude-delegated-signoff.md` |
 | [T0011](T0011-site-shell/) | Website site shell and test harness | blocked: waits for PR #52 (T0003) to merge | this PR (covered by T0010 signoff) | | `01-spec.md` |
 
