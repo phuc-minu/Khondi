@@ -57,6 +57,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env (copy .env.example)}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env (copy .env.example)}
       DIAGNOSTICS_ENABLED: ${DIAGNOSTICS_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "127.0.0.1:${KHONDI_API_PORT:-8000}:${PORT:-8000}"
     depends_on:
@@ -86,6 +87,7 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:?Set ENVIRONMENT in .env (copy .env.example)}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env (copy .env.example)}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -123,6 +125,38 @@ services:
       retries: 20
       start_period: 10s
 
+  # Telemetry (T0007). No app waits for these: export runs in the background and a missing
+  # collector loses telemetry, never a request or a job.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.165.0
+    command: ["--config", "/etc/khondi/collector.yaml"]
+    volumes:
+      - ./infra/otel/collector.yaml:/etc/khondi/collector.yaml:ro
+    ports:
+      # For apps run natively on this computer; containers use otel-collector:4318.
+      - "127.0.0.1:${KHONDI_OTLP_HTTP_PORT:-4318}:4318"
+
+  lgtm:
+    # Tempo, Loki and Grafana in one container. Local only: Azure uses Application Insights.
+    image: grafana/otel-lgtm:0.41.1
+    environment:
+      # Grafana otherwise downloads grafana-llm-app on every start; nothing here uses it.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+    ports:
+      # Grafana. It signs everyone in as admin, so it must stay on 127.0.0.1.
+      - "127.0.0.1:${KHONDI_GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - lgtm:/data
+    healthcheck:
+      # The image writes this file once Grafana, Tempo, Loki and its own collector answer.
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 20s
+
 volumes:
   pgdata:
     name: khondi-pgdata
+  lgtm:
+    name: khondi-lgtm

@@ -1,8 +1,11 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import AnyHttpUrl, PostgresDsn, RedisDsn, SecretStr
+from pydantic import AnyHttpUrl, BeforeValidator, PostgresDsn, RedisDsn, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Compose passes an optional variable that .env leaves out as an empty string, not as unset.
+OptionalUrl = Annotated[AnyHttpUrl | None, BeforeValidator(lambda value: value or None)]
 
 
 class Settings(BaseSettings):
@@ -13,7 +16,7 @@ class Settings(BaseSettings):
     DATABASE_URL: SecretStr
     REDIS_URL: SecretStr
     DIAGNOSTICS_ENABLED: bool = False
-    OTEL_EXPORTER_OTLP_ENDPOINT: AnyHttpUrl | None = None
+    OTEL_EXPORTER_OTLP_ENDPOINT: OptionalUrl = None
 
     @property
     def database_dsn(self) -> PostgresDsn:
@@ -53,7 +56,7 @@ class WorkerSettings(BaseSettings):
 
     ENVIRONMENT: Literal["local", "ci", "dev"]
     REDIS_URL: SecretStr
-    OTEL_EXPORTER_OTLP_ENDPOINT: AnyHttpUrl | None = None
+    OTEL_EXPORTER_OTLP_ENDPOINT: OptionalUrl = None
 
     @property
     def redis_dsn(self) -> RedisDsn:
