@@ -96,7 +96,7 @@ test.describe("example trip page", () => {
           const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
           for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             const text = node.textContent ?? "";
-            for (const match of text.matchAll(/\S+/g)) {
+            for (const match of text.matchAll(/[^\s-]+/g)) {
               const range = document.createRange();
               range.setStart(node, match.index ?? 0);
               range.setEnd(node, (match.index ?? 0) + match[0].length);
