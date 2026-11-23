@@ -25,6 +25,13 @@ test.describe("about page", () => {
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current", "page");
   });
 
+  test("links to the example trip", async ({ page }) => {
+    await page.goto("/about");
+    await page.getByRole("main").getByRole("link", { name: "See example trip" }).click();
+    await expect(page).toHaveURL(/\/trips\/new-orleans-example$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("New Orleans for $3,000");
+  });
+
   test("has no axe violations", async ({ page }) => {
     await page.goto("/about");
     const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
