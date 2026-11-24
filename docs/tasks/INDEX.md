@@ -18,5 +18,6 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0013](T0013-new-orleans-example/) | Illustrative $3,000 New Orleans trip (#58) | needs-claude-review (QA D1 fixed; delta review, QA re-run and Codex r2 pending) | this PR (delegated) | draft PR #81 | `08-claude-ci-fix.md` |
 | [T0014](T0014-budget-starter/) | Budget-first trip starter (#56) | spec signed off under delegation; waits for T0013 | this PR (delegated) | | `01-spec.md` |
 | [T0015](T0015-landing/) | Landing page (#57, #54) | spec signed off under delegation; waits for T0014 | this PR (delegated) | | `01-spec.md` |
+| [T0016](T0016-visual-design/) | Visual design for the public website (#55) | designer brief written; waits for Senior Designer | this PR (delegated) | | `01-designer-brief.md` |
 
 States: `awaiting-plan-approval`, `in-progress`, `needs-claude-review`, `needs-rework`, `ready-for-phil`, `blocked`, `merged`, `cancelled`.
