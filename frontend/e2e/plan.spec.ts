@@ -7,16 +7,22 @@ const stepTwo = "Step 2 of 3 — Destinations that fit";
 const different = "Your answers are different from the sample, so its costs won't match your trip. We don't adjust sample prices to your answers.";
 const below = "Your budget is below this sample's $3,000 total.";
 
+async function expectNoOverflow(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+}
+
 async function expectAccessible(page: Page) {
   const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
   expect(result.violations).toEqual([]);
 }
 
 test("shows focused, linked field errors and passes axe in both form states", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
   const response = await page.goto("/plan");
   expect(response?.status()).toBe(200);
   await expect(page).toHaveTitle("Start planning — Khondi");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start planning");
+  await expectNoOverflow(page);
   await expectAccessible(page);
 
   const fields = [
@@ -46,11 +52,17 @@ test("shows focused, linked field errors and passes axe in both form states", as
     await summary.getByRole("link", { name: message, exact: true }).click();
     await expect(field).toBeFocused();
   }
+  await expectNoOverflow(page);
   await expectAccessible(page);
 });
 
 test("shows the budget notes, announces step 2, and keeps every raw answer when editing", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/plan");
+  const progress = page.getByRole("list", { name: "Planning progress" });
+  await expect(progress.getByRole("listitem")).toHaveText(["Set a budget (current)", "See what fits", "Read the plan"]);
+  const current = progress.locator('[aria-current="step"]');
+  await expect(current).toHaveText("Set a budget (current)");
   await expect(page.getByText("Your answers stay in this browser tab. They aren't sent anywhere or saved.")).toBeVisible();
   await page.getByLabel("Total budget (USD)").fill("2,999");
   await page.getByLabel("Travelers").selectOption("3");
@@ -62,14 +74,17 @@ test("shows the budget notes, announces step 2, and keeps every raw answer when 
 
   await expect(page.getByRole("heading", { name: stepTwo })).toBeFocused();
   await expect(page.getByRole("status")).toHaveText("Step 2 of 3");
+  await expect(current).toHaveText("See what fits (current)");
   await expect(page.getByRole("heading", { name: "New Orleans (sample)" })).toBeVisible();
   await expect(page.getByText(different, { exact: true })).toBeVisible();
   await expect(page.getByText(below, { exact: true })).toBeVisible();
   await expect(page.getByText("You picked: Food, Museums", { exact: true })).toBeVisible();
+  await expectNoOverflow(page);
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "Change my answers" }).click();
   await expect(page.getByRole("heading", { name: stepOne })).toBeFocused();
+  await expect(current).toHaveText("Set a budget (current)");
   await expect(page.getByLabel("Total budget (USD)")).toHaveValue("2,999");
   await expect(page.getByLabel("Travelers")).toHaveValue("3");
   await expect(page.getByLabel("Trip length")).toHaveValue("2");
@@ -157,13 +172,15 @@ test("links all entry CTAs and fits the 320px viewport with a 44px header target
   await page.setViewportSize({ width: 320, height: 640 });
   for (const path of ["/", "/about", examplePath, "/plan"]) {
     await page.goto(path);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expectNoOverflow(page);
+    await page.getByRole("button", { name: "Menu" }).click();
     const cta = page.getByRole("banner").getByRole("link", { name: "Start planning" });
     const box = await cta.boundingBox();
     expect(box?.width).toBeGreaterThanOrEqual(44);
     expect(box?.height).toBeGreaterThanOrEqual(44);
   }
   await page.goto("/");
+  await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("banner").getByRole("link", { name: "Start planning" }).click();
   await expect(page).toHaveURL(/\/plan$/);
   await page.goto("/about");
@@ -173,6 +190,23 @@ test("links all entry CTAs and fits the 320px viewport with a 44px header target
   await page.getByRole("link", { name: "Customize this trip" }).click();
   await expect(page).toHaveURL(/\/plan\?from=new-orleans-example$/);
   await expect(page.getByLabel("Total budget (USD)")).toHaveValue("3000");
+});
+
+test("places the progress and form in two columns from 768px", async ({ page }) => {
+  for (const width of [767, 768]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/plan");
+    const heading = await page.getByRole("heading", { level: 1 }).boundingBox();
+    const formHeading = await page.getByRole("heading", { name: stepOne }).boundingBox();
+    expect(heading).not.toBeNull();
+    expect(formHeading).not.toBeNull();
+    if (width === 768) {
+      expect(formHeading?.x).toBeGreaterThan((heading?.x ?? 0) + (heading?.width ?? 0));
+    } else {
+      expect(formHeading?.y).toBeGreaterThan((heading?.y ?? 0) + (heading?.height ?? 0));
+    }
+    await expectNoOverflow(page);
+  }
 });
 
 test.describe("without JavaScript", () => {

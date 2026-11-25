@@ -16,6 +16,9 @@ test.describe("example trip page", () => {
       return Boolean(note && h2 && note.compareDocumentPosition(h2) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
     expect(noteAboveFirstH2).toBe(true);
+    await expect(page.locator("main header").getByRole("listitem")).toHaveText([
+      "2 adults", "4 days, 3 nights", "Flying from the San Francisco Bay Area",
+    ]);
     await expect(page.getByRole("note")).toHaveText(
       "Illustrative estimate — not a quote. Prices are sample values for planning, not live fares or rates, and nothing here can be booked.",
     );
@@ -23,8 +26,9 @@ test.describe("example trip page", () => {
 
   test("shows assumptions, costs, totals, no-buffer line and four days", async ({ page }) => {
     await page.goto(path);
+    const assumptions = page.getByRole("region", { name: "Trip assumptions" });
     for (const text of ["2 adults", "San Francisco Bay Area (SFO, OAK or SJC)", "4 days, 3 nights", "An off-peak week in autumn; no specific dates", "Flying, economy, round trip"]) {
-      await expect(page.getByRole("main").getByText(text)).toBeVisible();
+      await expect(assumptions.getByText(text)).toBeVisible();
     }
     for (const item of ["Travel insurance", "Checked bag fees", "Shopping and souvenirs", "Travel to and from your home airport"]) {
       await expect(page.getByRole("listitem").filter({ hasText: item })).toBeVisible();
@@ -54,7 +58,92 @@ test.describe("example trip page", () => {
     await page.goto(path);
     await expect(page.locator("table caption")).toHaveCount(1);
     await expect(page.locator('thead th[scope="col"]')).toHaveCount(3);
+    await expect(page.locator('tbody th[scope="row"]')).toHaveCount(5);
     await expect(page.locator('tfoot th[scope="row"]')).toHaveCount(3);
+  });
+
+  test("matches the budget bar and legend to the cost table without motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(path);
+    const budget = page.getByRole("region", { name: "Where the $3,000 goes" });
+    const bar = budget.locator('[aria-hidden="true"]');
+    const legend = budget.getByRole("list").getByRole("listitem");
+    const table = budget.getByRole("table");
+
+    const budgetText = await table.getByRole("row", { name: /^Budget / }).getByRole("cell").innerText();
+    const toDollars = (text: string) => Number(text.replace(/[$,]/g, ""));
+    const rows = await table.locator("tbody tr").evaluateAll((elements) =>
+      elements.map((row) => ({
+        label: row.querySelector("th")?.textContent ?? "",
+        amount: row.querySelector("td:last-child")?.textContent ?? "",
+      })),
+    );
+    const weights = rows.map(({ amount }) => (toDollars(amount) / toDollars(budgetText)) * 100);
+    let total = 0;
+
+    await expect(budget.getByText(`${budgetText} total`, { exact: true })).toBeVisible();
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveCSS("column-gap", "2px");
+    expect(await bar.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+      await page.locator("body").evaluate((element) => getComputedStyle(element).backgroundColor),
+    );
+    await expect(bar.locator("span")).toHaveCount(rows.length);
+    await expect(legend).toHaveCount(rows.length);
+    for (const [index, { label, amount }] of rows.entries()) {
+      const item = legend.nth(index);
+      const segment = bar.locator("span").nth(index);
+      const width = weights[index];
+      const percentage = Number.isInteger(width) ? width.toString() : width.toFixed(1);
+      await expect(item.getByText(label, { exact: true })).toBeVisible();
+      await expect(item.getByText(amount, { exact: true })).toBeVisible();
+      await expect(item.getByText(`${percentage}%`, { exact: true })).toBeVisible();
+      await expect(segment).toHaveCSS("animation-name", "none");
+      const { pixels, available, weight, color } = await segment.evaluate((element) => {
+        const bar = element.parentElement;
+        if (!bar) throw new Error("Budget segment has no parent");
+        const style = getComputedStyle(element);
+        return {
+          pixels: element.getBoundingClientRect().width,
+          available: bar.clientWidth - (bar.childElementCount - 1) * 2,
+          weight: Number(style.flexGrow),
+          color: style.backgroundColor,
+        };
+      });
+      expect(weight).toBeCloseTo(width, 4);
+      expect(Math.abs(pixels - available * width / 100)).toBeLessThan(1);
+      await expect(item.locator("[data-category]")).toHaveCSS("background-color", color);
+      total += weight;
+    }
+    expect(total).toBeCloseTo(100, 4);
+  });
+
+  test("aligns sections without overflow and reflows day cards at 768px", async ({ page }) => {
+    for (const width of [320, 375, 768, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(path);
+      const leftEdge = await page.locator("header a:first-child > svg").evaluate((element) => element.getBoundingClientRect().left);
+      const headingEdges = await page.locator("main h1, main h2").evaluateAll((headings) =>
+        headings.map((heading) => heading.getBoundingClientRect().left),
+      );
+      expect(headingEdges).toEqual([leftEdge, leftEdge, leftEdge, leftEdge]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+
+      const days = page.getByRole("region", { name: "Day by day" });
+      await expect(days.getByRole("heading", { level: 3 })).toHaveText([
+        /^Day 1 — /, /^Day 2 — /, /^Day 3 — /, /^Day 4 — /,
+      ]);
+      const cards = await days.locator("section").evaluateAll((sections) =>
+        sections.map((section) => {
+          const { x, y } = section.getBoundingClientRect();
+          return { x, y };
+        }),
+      );
+      expect(cards).toHaveLength(4);
+      const columns = width < 768 ? 1 : 2;
+      expect(new Set(cards.map(({ x }) => x)).size).toBe(columns);
+      expect(new Set(cards.map(({ y }) => y)).size).toBe(4 / columns);
+      expect(cards).toEqual([...cards].sort((a, b) => a.y - b.y || a.x - b.x));
+    }
   });
 
   test("contains none of the forbidden claims", async ({ page }) => {
@@ -67,9 +156,10 @@ test.describe("example trip page", () => {
 
   test("lists Example trip second in header and footer and marks it current", async ({ page }) => {
     await page.goto(path);
+    if ((page.viewportSize()?.width ?? 900) < 900) await page.getByRole("button", { name: "Menu" }).click();
     for (const name of ["Main", "Footer"]) {
       const links = page.getByRole("navigation", { name }).getByRole("link");
-      await expect(links).toHaveText(["Home", "Example trip", "About"]);
+      await expect(links).toHaveText(["Home", "Example trip", "How it works", "About"]);
     }
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Example trip" })).toHaveAttribute("aria-current", "page");
   });

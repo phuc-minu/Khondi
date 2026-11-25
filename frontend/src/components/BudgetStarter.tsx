@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { belowSampleBudget, differsFromSample, parsePlanForm, planInterests, type PlanErrors, type PlanValues } from "../lib/plan-input";
 import buttons from "./LinkButton.module.css";
 import styles from "./BudgetStarter.module.css";
 
 const samplePath = "/trips/new-orleans-example";
 const fields = ["budgetUsd", "travelers", "lengthDays", "origin", "interests"] as const;
+const steps = ["Set a budget", "See what fits", "Read the plan"];
 
-export function BudgetStarter({ prefill }: { prefill: PlanValues | null }): React.ReactElement {
+export function BudgetStarter({ prefill, children }: { prefill: PlanValues | null; children: ReactNode }): React.ReactElement {
   const [budgetUsd, setBudget] = useState(prefill ? String(prefill.budgetUsd) : "");
   const [travelers, setTravelers] = useState(String(prefill?.travelers ?? 2));
   const [lengthDays, setLength] = useState(String(prefill?.lengthDays ?? 4));
@@ -50,75 +51,87 @@ export function BudgetStarter({ prefill }: { prefill: PlanValues | null }): Reac
   }
 
   return (
-    <div className={styles.starter}>
-      <div className="visually-hidden" role="status">{showResults ? "Step 2 of 3" : ""}</div>
-      {showResults && result ? (
-        <>
-          <h2 ref={stepHeading} tabIndex={-1}>Step 2 of 3 — Destinations that fit</h2>
-          <section className={styles.card}>
-            <h3>New Orleans (sample)</h3>
-            <p>Our only sample destination today. The sample is built for 2 travelers, 4 days and $3,000.</p>
-            {differsFromSample(result) && <p>Your answers are different from the sample, so its costs won&apos;t match your trip. We don&apos;t adjust sample prices to your answers.</p>}
-            {belowSampleBudget(result) && <p>Your budget is below this sample&apos;s $3,000 total.</p>}
-            {result.interests.length > 0 && <p>You picked: {result.interests.join(", ")}</p>}
-          </section>
-          <p>More destinations aren&apos;t available yet.</p>
-          <div className={styles.actions}>
-            <a href={samplePath} className={`${buttons.button} ${buttons.primary}`}>Open the sample plan</a>
-            <button type="button" className={`${buttons.button} ${buttons.secondary}`} onClick={() => setShowResults(false)}>Change my answers</button>
-          </div>
-        </>
-      ) : (
-        <>
-          {errors && (
-            <div ref={summary} className={styles.summary} role="alert" tabIndex={-1}>
-              <h2>Please fix the following</h2>
-              <ul>
-                {fields.map((field) => errors[field] && (
-                  <li key={field}><a href={`#plan-${field}`}>{errors[field]}</a></li>
-                ))}
-              </ul>
+    <>
+      <div className={styles.intro}>
+        {children}
+        <ol className={styles.progress} role="list" aria-label="Planning progress">
+          {steps.map((label, index) => {
+            const current = index === (showResults ? 1 : 0);
+            return <li key={label} aria-current={current ? "step" : undefined}>{label}{current && " (current)"}</li>;
+          })}
+        </ol>
+      </div>
+      <div className={styles.starter}>
+        <div className="visually-hidden" role="status">{showResults ? "Step 2 of 3" : ""}</div>
+        {showResults && result ? (
+          <>
+            <h2 ref={stepHeading} tabIndex={-1}>Step 2 of 3 — Destinations that fit</h2>
+            <section className={styles.card}>
+              <h3>New Orleans (sample)</h3>
+              <p>Our only sample destination today. The sample is built for 2 travelers, 4 days and $3,000.</p>
+              {differsFromSample(result) && <p>Your answers are different from the sample, so its costs won&apos;t match your trip. We don&apos;t adjust sample prices to your answers.</p>}
+              {belowSampleBudget(result) && <p>Your budget is below this sample&apos;s $3,000 total.</p>}
+              {result.interests.length > 0 && <p>You picked: {result.interests.join(", ")}</p>}
+            </section>
+            <p>More destinations aren&apos;t available yet.</p>
+            <div className={styles.actions}>
+              <a href={samplePath} className={`${buttons.button} ${buttons.primary}`}>Open the sample plan</a>
+              <button type="button" className={`${buttons.button} ${buttons.secondary}`} onClick={() => setShowResults(false)}>Change my answers</button>
             </div>
-          )}
-          <h2 ref={stepHeading} tabIndex={-1} id="plan-budget-heading">Step 1 of 3 — Your budget</h2>
-          {prefill && <p>Pre-filled from the New Orleans sample.</p>}
-          {/* Unnamed controls keep answers out of native submissions before hydration. */}
-          <form noValidate autoComplete="off" onSubmit={submit}>
-            <fieldset className={styles.fields} aria-labelledby="plan-budget-heading">
-              <label htmlFor="plan-budgetUsd">Total budget (USD)</label>
-              <input {...fieldAttributes("budgetUsd")} required inputMode="numeric" value={budgetUsd} onChange={(event) => setBudget(event.target.value)} />
-              {fieldError("budgetUsd")}
-              <label htmlFor="plan-travelers">Travelers</label>
-              <select {...fieldAttributes("travelers")} required value={travelers} onChange={(event) => setTravelers(event.target.value)}>
-                {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}
-              </select>
-              {fieldError("travelers")}
-              <label htmlFor="plan-lengthDays">Trip length</label>
-              <select {...fieldAttributes("lengthDays")} required value={lengthDays} onChange={(event) => setLength(event.target.value)}>
-                {[1, 2, 3, 4, 5].map((days) => <option key={days} value={days}>{days} {days === 1 ? "day" : "days"}</option>)}
-              </select>
-              {fieldError("lengthDays")}
-              <label htmlFor="plan-origin">Leaving from (optional)</label>
-              <input {...fieldAttributes("origin")} maxLength={60} value={origin} onChange={(event) => setOrigin(event.target.value)} />
-              {fieldError("origin")}
-              <fieldset {...fieldAttributes("interests")} className={styles.interests}>
-                <legend>Interests (optional)</legend>
-                {planInterests.map((interest) => (
-                  <label key={interest}>
-                    <input type="checkbox" checked={interests.includes(interest)} onChange={(event) => {
-                      setInterests(event.target.checked ? [...interests, interest] : interests.filter((item) => item !== interest));
-                    }} />
-                    {interest}
-                  </label>
-                ))}
-                {fieldError("interests")}
+          </>
+        ) : (
+          <>
+            {errors && (
+              <div ref={summary} className={styles.summary} role="alert" tabIndex={-1}>
+                <h2>Please fix the following</h2>
+                <ul>
+                  {fields.map((field) => errors[field] && (
+                    <li key={field}><a href={`#plan-${field}`}>{errors[field]}</a></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <h2 ref={stepHeading} tabIndex={-1} id="plan-budget-heading">Step 1 of 3 — Your budget</h2>
+            {prefill && <p>Pre-filled from the New Orleans sample.</p>}
+            {/* Unnamed controls keep answers out of native submissions before hydration. */}
+            <form noValidate autoComplete="off" onSubmit={submit}>
+              <fieldset className={styles.fields} aria-labelledby="plan-budget-heading">
+                <label htmlFor="plan-budgetUsd">Total budget (USD)</label>
+                <input {...fieldAttributes("budgetUsd")} required inputMode="numeric" value={budgetUsd} onChange={(event) => setBudget(event.target.value)} />
+                {fieldError("budgetUsd")}
+                <label htmlFor="plan-travelers">Travelers</label>
+                <select {...fieldAttributes("travelers")} required value={travelers} onChange={(event) => setTravelers(event.target.value)}>
+                  {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}
+                </select>
+                {fieldError("travelers")}
+                <label htmlFor="plan-lengthDays">Trip length</label>
+                <select {...fieldAttributes("lengthDays")} required value={lengthDays} onChange={(event) => setLength(event.target.value)}>
+                  {[1, 2, 3, 4, 5].map((days) => <option key={days} value={days}>{days} {days === 1 ? "day" : "days"}</option>)}
+                </select>
+                {fieldError("lengthDays")}
+                <label htmlFor="plan-origin">Leaving from (optional)</label>
+                <input {...fieldAttributes("origin")} maxLength={60} value={origin} onChange={(event) => setOrigin(event.target.value)} />
+                {fieldError("origin")}
+                <fieldset {...fieldAttributes("interests")} className={styles.interests}>
+                  <legend>Interests (optional)</legend>
+                  {planInterests.map((interest) => (
+                    <label key={interest}>
+                      <input type="checkbox" checked={interests.includes(interest)} onChange={(event) => {
+                        setInterests(event.target.checked ? [...interests, interest] : interests.filter((item) => item !== interest));
+                      }} />
+                      {interest}
+                    </label>
+                  ))}
+                  {fieldError("interests")}
+                </fieldset>
+                <button type="submit" className={`${buttons.button} ${buttons.primary}`}>See what fits</button>
               </fieldset>
-              <button type="submit" className={`${buttons.button} ${buttons.primary}`}>See what fits</button>
-            </fieldset>
-          </form>
-          <p>Your answers stay in this browser tab. They aren&apos;t sent anywhere or saved.</p>
-        </>
-      )}
-    </div>
+            </form>
+            <p className={styles.supporting}>Your answers stay in this browser tab. They aren&apos;t sent anywhere or saved.</p>
+            <a className={styles.sampleLink} href={samplePath}>Read the sample trip</a>
+          </>
+        )}
+      </div>
+    </>
   );
 }

@@ -15,8 +15,9 @@ export default async function PlanPage({ searchParams }: {
   const prefill = prefillFrom(typeof from === "string" ? from : null);
   return (
     <article className={styles.page}>
-      <h1>Start planning</h1>
-      <BudgetStarter key={prefill ? "sample" : "blank"} prefill={prefill} />
+      <BudgetStarter key={prefill ? "sample" : "blank"} prefill={prefill}>
+        <h1>Start planning</h1>
+      </BudgetStarter>
       <noscript>
         <p>The planner needs JavaScript. You can still read the sample trip.</p>
         <a href="/trips/new-orleans-example">Open the sample plan</a>
