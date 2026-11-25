@@ -45,4 +45,5 @@ The brief requires the Product Owner to approve the visual direction before impl
 
 ## Owner decisions
 - **D1 (2026-11-24): follow the ChatGPT mockups.** Landing h1 stays "Plan the right trip for your budget" and CTA labels are **Start planning** and **See example trip**, exactly as in T0010 and T0015. "Plan my trip" and the tagline-as-h1 from `02-designer-handoff.md` are dropped. "Your budget, your trip" stays in the brand lockup and footer only. Nav labels are unchanged (Home, Example trip, How it works, About), since D1 did not cover them. Because T0010 already approves the About "Who it's for" section, that row is not new copy.
-- **D2, D3:** not yet answered. Defaults apply (T0010 copy only; no photos in the first PRs). T0017 does not depend on either.
+- **D2 (2026-11-24): hold for the Product Manager.** Only T0010 copy is built. The designer's extra step titles, fourth feature card, "Why this works" and "Key neighborhoods" wait for PM sign-off. Add them with a `state:needs-product-review` request when wanted.
+- **D3:** not yet answered. Default applies (no photos in the first PRs). T0017 does not depend on it.
