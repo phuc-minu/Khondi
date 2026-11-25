@@ -1,9 +1,10 @@
-# Khondi Azure DEV/PROD implementation plan
+# Khondi single-environment implementation plan
 
 - Status: Draft for Product Owner approval
 - Date: 2026-11-24
 - No Azure resources provisioned
 - No production deployment authorized
+- Monthly cost target: below $100
 
 ## Repository findings
 
@@ -18,21 +19,21 @@ Observed architecture and contracts:
 - Existing `.github/workflows/quality.yml` is quality-oriented; an Azure delivery workflow is not yet part of the reviewed plan.
 - Repository governance requires approval before infrastructure implementation or provisioning.
 
-## Proposed environment layout
+## Proposed single environment
 
-| Concern | DEV | PROD |
-| --- | --- | --- |
-| Resource group | `rg-khondi-dev` | `rg-khondi-prod` |
-| Container Apps environment | Dedicated | Dedicated |
-| Web/API scale | Scale-to-zero where acceptable | Minimum one web/API replica |
-| Worker | One small replica when testing | At least one replica |
-| PostgreSQL | Smallest suitable Flexible Server; scheduled stop/start if acceptable | Small always-on Flexible Server; HA only after SLO requires it |
-| Redis | Disposable lower-cost option during early development | Managed Redis with TLS |
-| Secrets | DEV Key Vault | PROD Key Vault, separate identity and access |
-| Logs | Short retention and low ingestion budget | Longer retention, alerts, controlled sampling |
-| Data | Synthetic/demo only | Production data with restore and retention policy |
-| Deployment | Manual or protected DEV environment | Manual approval + protected environment |
-| DNS/TLS | Azure-provided hostname initially | Custom domain and managed certificate when approved |
+| Concern | Decision |
+| --- | --- |
+| Resource group | `rg-khondi` |
+| Container Apps environment | One Consumption environment: `khondi` |
+| Web/API scale | Scale-to-zero where safe; one small replica when serving the demo |
+| Worker | Zero when unused; one small replica during jobs |
+| PostgreSQL | Smallest suitable Flexible Server; stop outside the approved operating schedule |
+| Redis | Low-cost TLS-capable disposable queue/cache; managed Redis deferred |
+| Secrets | One Key Vault with managed identity |
+| Logs | Short retention, redaction, sampling, and ingestion budget |
+| Data | Synthetic/demo data until a second environment is funded |
+| Deployment | Manual or protected GitHub environment |
+| DNS/TLS | Azure-provided hostname initially; custom domain later |
 
 ## Planned IaC layout after approval
 
@@ -50,8 +51,7 @@ infra/
     monitoring.bicep
     budgets.bicep
   environments/
-    dev.parameters.json
-    prod.parameters.json
+    single.parameters.json
 ```
 
 Bicep must use parameterized names, region, SKUs, tags, identity IDs, scaling rules, secret references, and log retention. It must not contain passwords, tokens, or connection strings. Validation gates: `az bicep build`, `az deployment ... what-if` with no apply, and an IaC security scan with no unresolved high/critical findings.
@@ -66,13 +66,13 @@ Bicep must use parameterized names, region, SKUs, tags, identity IDs, scaling ru
    - No Azure write access.
 2. Merge to `main`:
    - Build once, push immutable SHA-tagged images to ACR.
-   - Deploy DEV using GitHub OIDC only if the DEV environment policy is approved.
+   - Deploy the single environment using GitHub OIDC only after approval.
    - Run smoke tests against web/API health and readiness endpoints.
    - Run migration job as a separate, observable step before API traffic promotion.
-3. PROD release:
+3. Release:
    - Manual workflow dispatch or approved release tag.
-   - Protected GitHub environment with reviewers.
-   - Reuse the exact image digest promoted from DEV.
+   - Protected GitHub environment with one reviewer.
+   - Reuse the exact image digest from CI.
    - Run Bicep what-if and show the diff before apply.
    - Run migration job, deploy a new Container Apps revision, smoke test, then shift traffic.
    - Keep the prior revision available for rollback.
@@ -87,8 +87,7 @@ Bicep must use parameterized names, region, SKUs, tags, identity IDs, scaling ru
 - Managed identities:
   - Container Apps runtime identity: read only required Key Vault secrets.
   - Migration job identity: migration database secret only.
-  - GitHub DEV identity: scoped to DEV resource group and ACR push.
-  - GitHub PROD identity: separate, protected, and limited to the approved deployment resource group.
+  - GitHub deployment identity: scoped to `rg-khondi` and ACR push.
 - Use Key Vault references rather than copying secret values into workflow variables.
 
 ## Monitoring and operations
@@ -98,29 +97,30 @@ Bicep must use parameterized names, region, SKUs, tags, identity IDs, scaling ru
 - Data handling: preserve the repository's redaction rules. Do not collect request bodies, prompts, LLM output, traveler PII, headers, query strings, credentials, or client IPs.
 - Runbooks: deploy, rollback, migration failure, database restore, Redis outage, secret rotation, budget overrun, and teardown.
 
-## Cost model and approval budget
+## Cost model and hard ceiling
 
-These are planning ranges for a low-traffic initial deployment, not a quote.
+The initial target is below $100/month for low traffic. This is a planning range, not a quote.
 
-| Environment | Expected monthly range | Main assumptions |
-| --- | ---: | --- |
-| DEV | $25–$90 stopped nightly; $80–$180 always-on | One small PostgreSQL server, low Container Apps usage, small registry/Key Vault, modest logs, lower-cost Redis |
-| PROD | $180–$450 | One small always-on PostgreSQL server, managed Redis, minimum web/API/worker capacity, modest monitoring and egress |
-| DR expansion | +$150–$500+ | Second region, replicated database/backup strategy, duplicated runtime/monitoring |
+| Component | Control | Planning allowance |
+| --- | --- | ---: |
+| PostgreSQL Flexible Server | Smallest suitable tier; stop outside schedule | $25–$60 |
+| Container Apps | Consumption; scale-to-zero or one small replica | $0–$15 |
+| Redis | Disposable low-cost option; no managed Redis initially | $0–$10 |
+| ACR, Key Vault, monitoring | Small registry, one vault, short retention and low ingestion | $5–$15 |
+| Buffer | Egress/variation | $5–$10 |
+| **Total target** | **Must remain below $100** | **$45–$95** |
 
-Verify exact prices with the Azure Pricing Calculator in the selected region. PostgreSQL pricing is especially sensitive to compute tier, storage, backup retention, HA, and whether the server is stopped. Container Apps Consumption can scale to zero, but always-on minimum replicas, Redis, logs, egress, and provider/API usage can dominate the total.
+A continuously running database, managed Redis, high log volume, HA, WAF/Front Door, geo-redundant DR, custom domains, or external provider/API usage can exceed the ceiling. Budget alerts must be configured before provisioning; any forecast over $100 pauses expansion and requires owner approval.
 
 ## Risks and open decisions
 
 - Select region and confirm service availability/quotas.
-- Decide whether PROD needs private networking on day one.
-- Select the exact Redis product/SKU and define queue-loss/retry expectations.
-- Set RPO/RTO and PostgreSQL backup retention.
+- Confirm the PostgreSQL stop/start schedule and acceptable downtime.
+- Select the low-cost Redis option and document queue-loss/retry expectations.
+- Set RPO/RTO and PostgreSQL backup retention within budget.
 - Confirm custom domain, DNS ownership, and TLS requirements.
-- Confirm whether DEV may stop PostgreSQL automatically.
-- Confirm monthly budgets and who receives alerts.
-- Confirm whether deployment should be in the same subscription or separate DEV/PROD subscriptions.
+- Confirm the $100 monthly ceiling and alert recipients.
 
 ## Approval gate
 
-Please approve or revise the companion ADR and this plan. After approval, implementation can begin on an isolated branch with Bicep, GitHub Actions delivery workflow, and validation evidence. No Azure provisioning will occur without a separate, explicit environment-specific authorization after the implementation PR is reviewed.
+Please approve or revise the companion ADR and this single-environment plan. After approval, implementation can begin on an isolated branch with Bicep, GitHub Actions delivery workflow, and validation evidence. No Azure provisioning will occur without a separate, explicit environment-specific authorization after the implementation PR is reviewed.
