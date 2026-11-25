@@ -4,10 +4,8 @@ const headings: Readonly<Record<string, string>> = {
   "/": "Plan the right trip for your budget",
   "/about": "About Khondi",
   "/trips/new-orleans-example": "New Orleans for $3,000",
+  "/plan": "Start planning",
 };
-
-// T0014 removes this exception when it adds the starter route.
-const pendingStarter = "/plan";
 
 const footerSentence = "This site doesn't use cookies or analytics, and the trip planner keeps your answers in your browser.";
 const approvedDisclaimers: Readonly<Record<string, string>> = {
@@ -43,7 +41,6 @@ test("every public link reaches its page and any named anchor", async ({ page })
     );
     for (const href of links) {
       expect(href, path).toMatch(/^(?:\/(?!\/)|#.+$)/);
-      if (href === pendingStarter) continue;
       destinations.add(new URL(href ?? "", page.url()).href);
     }
   }

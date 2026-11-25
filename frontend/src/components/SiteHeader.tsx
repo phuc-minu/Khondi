@@ -43,7 +43,7 @@ export function SiteHeader(): React.ReactElement {
       }}
     >
       <div className={`container ${styles.inner}`}>
-        <Link className={styles.brand} href="/" onNavigate={closeMenu}>
+        <Link className={styles.brand} href="/" prefetch={false} onNavigate={closeMenu}>
           <BrandMark />
           <span>
             Khondi
@@ -67,12 +67,12 @@ export function SiteHeader(): React.ReactElement {
             <ul className={styles.navList}>
               {mainNavigation.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} aria-current={pathname === item.href ? "page" : undefined}>{item.label}</Link>
+                  <Link href={item.href} prefetch={false} aria-current={pathname === item.href ? "page" : undefined}>{item.label}</Link>
                 </li>
               ))}
             </ul>
           </nav>
-          <LinkButton href="/trips/new-orleans-example" variant="primary">See example trip</LinkButton>
+          <LinkButton href="/plan" variant="primary" prefetch={false}>Start planning</LinkButton>
         </div>
       </div>
     </header>

@@ -11,7 +11,7 @@ export function SiteFooter(): React.ReactElement {
         <nav aria-label="Footer">
           <ul className={styles.navList}>
             {mainNavigation.map((item) => (
-              <li key={item.href}><Link href={item.href}>{item.label}</Link></li>
+              <li key={item.href}><Link href={item.href} prefetch={false}>{item.label}</Link></li>
             ))}
           </ul>
         </nav>

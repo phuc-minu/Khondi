@@ -54,9 +54,10 @@ export default function NewOrleansExamplePage(): React.ReactElement {
           These are suggestions, not reservations. Check opening hours, prices and availability before you go.
         </p>
       </section>
-      <LinkButton href="/about" variant="secondary">
-        About Khondi
-      </LinkButton>
+      <div className={styles.actions}>
+        <LinkButton href="/plan?from=new-orleans-example" variant="primary" prefetch={false}>Customize this trip</LinkButton>
+        <LinkButton href="/about" variant="secondary" prefetch={false}>About Khondi</LinkButton>
+      </div>
     </article>
   );
 }

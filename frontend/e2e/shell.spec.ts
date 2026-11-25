@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const example = "/trips/new-orleans-example";
-const routes = ["/", "/about", example];
+const routes = ["/", "/about", example, "/plan"];
 const footerSentence = "This site doesn't use cookies or analytics, and the trip planner keeps your answers in your browser.";
 
 test.describe("site shell", () => {
@@ -66,7 +66,7 @@ test.describe("site shell", () => {
     await page.evaluate(() => window.scrollTo(0, 500));
     expect(await page.evaluate(() => window.scrollY)).toBe(500);
     expect(await header.evaluate((element) => element.getBoundingClientRect().top)).toBe(0);
-    await expect(header.getByRole("link", { name: "See example trip" })).toHaveCSS("min-height", "48px");
+    await expect(header.getByRole("link", { name: "Start planning" })).toHaveCSS("min-height", "48px");
   });
 
   test("menu works by click and keyboard and restores focus on close and navigation", async ({ page }) => {
@@ -82,7 +82,7 @@ test.describe("site shell", () => {
     await trigger.click();
     await expect(menu).toBeHidden();
     await trigger.press("Enter");
-    for (const name of ["Home", "Example trip", "How it works", "About", "See example trip"]) {
+    for (const name of ["Home", "Example trip", "How it works", "About", "Start planning"]) {
       await page.keyboard.press("Tab");
       await expect(menu.getByRole("link", { name, exact: true })).toBeFocused();
     }
@@ -103,12 +103,12 @@ test.describe("site shell", () => {
     await expect(trigger).toBeFocused();
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await trigger.press("Space");
-    await menu.getByRole("link", { name: "See example trip" }).click();
-    await expect(page).toHaveURL(example);
+    await menu.getByRole("link", { name: "Start planning" }).click();
+    await expect(page).toHaveURL("/plan");
     await expect(menu).toBeHidden();
     await expect(trigger).toBeFocused();
     await trigger.click();
-    await expect(menu.getByRole("link", { name: "Example trip", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(menu.locator('[aria-current="page"]')).toHaveCount(0);
   });
 
   test("keeps the navigation visible without JavaScript", async ({ browser, baseURL }) => {
@@ -117,8 +117,8 @@ test.describe("site shell", () => {
       await page.goto("/");
       await expect(page.getByRole("button", { name: "Menu" })).toHaveCount(0);
       await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
-      await page.getByRole("banner").getByRole("link", { name: "See example trip" }).click();
-      await expect(page).toHaveURL(example);
+      await page.getByRole("banner").getByRole("link", { name: "Start planning" }).click();
+      await expect(page).toHaveURL("/plan");
     } finally {
       await page.close();
     }
@@ -127,7 +127,7 @@ test.describe("site shell", () => {
   test("disables smooth scrolling and button transitions for reduced motion", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    const cta = page.getByRole("banner").getByRole("link", { name: "See example trip" });
+    const cta = page.getByRole("banner").getByRole("link", { name: "Start planning" });
     await expect(page.locator("html")).toHaveCSS("scroll-behavior", "smooth");
     await expect(cta).toHaveCSS("transition-property", "background-color, color");
     await page.emulateMedia({ reducedMotion: "reduce" });

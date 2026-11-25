@@ -40,10 +40,14 @@ test("How it works is reachable from the home and About menus and focuses the se
   }
 });
 
-test("links to the pending planner and both example trip calls to action work", async ({ page }) => {
+test("links to the planner and both example trip calls to action work", async ({ page }) => {
   await page.goto("/");
   const main = page.getByRole("main");
   await expect(main.getByRole("link", { name: "Start planning" })).toHaveAttribute("href", "/plan");
+  await main.getByRole("link", { name: "Start planning" }).click();
+  await expect(page).toHaveURL("/plan");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start planning");
+  await page.goto("/");
   for (const name of ["See example trip", "See the full example"]) {
     await main.getByRole("link", { name }).click();
     await expect(page).toHaveURL(example);
