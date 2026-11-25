@@ -8,11 +8,12 @@ const steps = [
 
 export function StepList(): React.ReactElement {
   return (
-    <ol className={styles.list}>
-      {steps.map((step) => (
+    <ol className={styles.list} role="list">
+      {steps.map((step, index) => (
         <li key={step.title} className={styles.item}>
+          <span className={styles.number} aria-hidden="true">{index + 1}</span>
           <strong>{step.title}</strong>
-          <span>{step.text}</span>
+          <p>{step.text}</p>
         </li>
       ))}
     </ol>
