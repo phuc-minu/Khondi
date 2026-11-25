@@ -36,9 +36,10 @@ export default function AboutPage(): React.ReactElement {
         book travel. As live data sources are added, plans will show where their information came from and how current
         it is.
       </p>
-      <LinkButton href="/trips/new-orleans-example" variant="secondary">
-        See example trip
-      </LinkButton>
+      <div className={styles.actions}>
+        <LinkButton href="/plan" variant="primary">Start planning</LinkButton>
+        <LinkButton href="/trips/new-orleans-example" variant="secondary">See example trip</LinkButton>
+      </div>
     </article>
   );
 }

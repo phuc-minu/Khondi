@@ -12,7 +12,7 @@ export function LinkButton({
   children: ReactNode;
 }): React.ReactElement {
   return (
-    <Link href={href} className={`${styles.button} ${styles[variant]}`}>
+    <Link href={href} prefetch={false} className={`${styles.button} ${styles[variant]}`}>
       {children}
     </Link>
   );

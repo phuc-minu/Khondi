@@ -30,9 +30,10 @@ export default function NewOrleansExamplePage(): React.ReactElement {
         <DayPlan key={entry.day} entry={entry} />
       ))}
       <p>These are suggestions, not reservations. Check opening hours, prices and availability before you go.</p>
-      <LinkButton href="/about" variant="secondary">
-        About Khondi
-      </LinkButton>
+      <div className={styles.actions}>
+        <LinkButton href="/plan?from=new-orleans-example" variant="primary">Customize this trip</LinkButton>
+        <LinkButton href="/about" variant="secondary">About Khondi</LinkButton>
+      </div>
     </article>
   );
 }

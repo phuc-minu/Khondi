@@ -1,0 +1,56 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-4);
+}
+
+@media (scripting: none) {
+  .starter { display: none; }
+}
+
+.fields, .interests {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fields > label { display: block; }
+
+.fields > input, .fields > select {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  background: var(--color-on-primary);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.fields [aria-invalid="true"] { border-color: var(--color-error); }
+.error { margin: 0 0 var(--space-3); color: var(--color-error); }
+.interests { margin-bottom: var(--space-4); }
+
+.interests label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.summary, .card {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.summary a { display: inline-block; min-height: 44px; }
+.summary h2, .card h3 { margin-top: 0; }
+.card p:last-child, .summary ul { margin-bottom: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.starter button { font-family: inherit; font-size: inherit; cursor: pointer; }
