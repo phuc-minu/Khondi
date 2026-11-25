@@ -14,8 +14,8 @@ Observed architecture and contracts:
 - Python 3.12 backend with FastAPI-style health/readiness endpoints and a production Docker image.
 - Next.js + TypeScript frontend with standalone container output and `/api/healthz`.
 - PostgreSQL with Alembic migrations; API uses a lower-privilege application role and migrations use a schema-owner role.
-- Redis/Arq worker with at-least-once processing, heartbeat health check, one API image reused by the worker, and explicitly non-durable queue/results.
-- Existing `docs/infra/azure-parity.md` already maps web, API, worker, migration job, PostgreSQL, Redis, and telemetry to Azure targets.
+- Optional Redis/Arq worker path with at-least-once processing and disposable queue/results; it is retained as a future extension, not part of the initial Azure deployment.
+- Existing `docs/infra/azure-parity.md` maps web, API, worker, migration job, PostgreSQL, Redis, and telemetry to Azure targets; this plan intentionally deploys only web, API, migration, PostgreSQL, and telemetry at first.
 - Existing `.github/workflows/quality.yml` is quality-oriented; an Azure delivery workflow is not yet part of the reviewed plan.
 - Repository governance requires approval before infrastructure implementation or provisioning.
 
@@ -26,9 +26,9 @@ Observed architecture and contracts:
 | Resource group | `rg-khondi` |
 | Container Apps environment | One Consumption environment: `khondi` |
 | Web/API scale | Scale-to-zero where safe; one small replica when serving the demo |
-| Worker | Zero when unused; one small replica during jobs |
+| Worker | Not deployed initially; add later when async jobs are approved |
 | PostgreSQL | Smallest suitable Flexible Server; stop outside the approved operating schedule |
-| Redis | Low-cost TLS-capable disposable queue/cache; managed Redis deferred |
+| Redis | Not deployed initially; preserve interface for later TLS-capable Redis/managed Redis |
 | Secrets | One Key Vault with managed identity |
 | Logs | Short retention, redaction, sampling, and ingestion budget |
 | Data | Synthetic/demo data until a second environment is funded |
@@ -45,7 +45,6 @@ infra/
     container-app.bicep
     container-job.bicep
     postgres-flexible-server.bicep
-    redis.bicep
     registry.bicep
     key-vault.bicep
     monitoring.bicep
@@ -69,6 +68,7 @@ Bicep must use parameterized names, region, SKUs, tags, identity IDs, scaling ru
    - Deploy the single environment using GitHub OIDC only after approval.
    - Run smoke tests against web/API health and readiness endpoints.
    - Run migration job as a separate, observable step before API traffic promotion.
+   - Do not deploy Redis or a worker in this phase.
 3. Release:
    - Manual workflow dispatch or approved release tag.
    - Protected GitHub environment with one reviewer.
@@ -88,14 +88,15 @@ Bicep must use parameterized names, region, SKUs, tags, identity IDs, scaling ru
   - Container Apps runtime identity: read only required Key Vault secrets.
   - Migration job identity: migration database secret only.
   - GitHub deployment identity: scoped to `rg-khondi` and ACR push.
+- Future async extension: add worker identity and Redis secret references without changing the API's current secret contract.
 - Use Key Vault references rather than copying secret values into workflow variables.
 
 ## Monitoring and operations
 
-- Alerts: failed revisions, unhealthy probes, restart loops, worker heartbeat missing, PostgreSQL unavailable, migration failure, high CPU/memory, budget thresholds, and excessive log ingestion.
+- Alerts: failed revisions, unhealthy probes, restart loops, PostgreSQL unavailable, migration failure, high CPU/memory, budget thresholds, and excessive log ingestion. Add worker-heartbeat alerts only when the async extension is enabled.
 - SLO candidates: web availability, API availability, readiness success rate, p95 API latency, job completion rate, migration success, and restore completion.
 - Data handling: preserve the repository's redaction rules. Do not collect request bodies, prompts, LLM output, traveler PII, headers, query strings, credentials, or client IPs.
-- Runbooks: deploy, rollback, migration failure, database restore, Redis outage, secret rotation, budget overrun, and teardown.
+- Runbooks: deploy, rollback, migration failure, database restore, secret rotation, budget overrun, and teardown. Add Redis outage and worker replay runbooks when async processing is enabled.
 
 ## Cost model and hard ceiling
 
@@ -105,22 +106,22 @@ The initial target is below $100/month for low traffic. This is a planning range
 | --- | --- | ---: |
 | PostgreSQL Flexible Server | Smallest suitable tier; stop outside schedule | $25–$60 |
 | Container Apps | Consumption; scale-to-zero or one small replica | $0–$15 |
-| Redis | Disposable low-cost option; no managed Redis initially | $0–$10 |
 | ACR, Key Vault, monitoring | Small registry, one vault, short retention and low ingestion | $5–$15 |
 | Buffer | Egress/variation | $5–$10 |
 | **Total target** | **Must remain below $100** | **$45–$95** |
 
-A continuously running database, managed Redis, high log volume, HA, WAF/Front Door, geo-redundant DR, custom domains, or external provider/API usage can exceed the ceiling. Budget alerts must be configured before provisioning; any forecast over $100 pauses expansion and requires owner approval.
+A continuously running database, high log volume, HA, WAF/Front Door, geo-redundant DR, custom domains, or external provider/API usage can exceed the ceiling. Reintroducing Redis or a worker requires a revised cost estimate. Budget alerts must be configured before provisioning; any forecast over $100 pauses expansion and requires owner approval.
 
 ## Risks and open decisions
 
 - Select region and confirm service availability/quotas.
 - Confirm the PostgreSQL stop/start schedule and acceptable downtime.
-- Select the low-cost Redis option and document queue-loss/retry expectations.
+- Confirm which supported workloads can run synchronously within request timeouts.
+- Define the future async-job trigger: latency, job duration, or retry requirements that justify Redis/Arq.
 - Set RPO/RTO and PostgreSQL backup retention within budget.
 - Confirm custom domain, DNS ownership, and TLS requirements.
 - Confirm the $100 monthly ceiling and alert recipients.
 
 ## Approval gate
 
-Please approve or revise the companion ADR and this single-environment plan. After approval, implementation can begin on an isolated branch with Bicep, GitHub Actions delivery workflow, and validation evidence. No Azure provisioning will occur without a separate, explicit environment-specific authorization after the implementation PR is reviewed.
+Please approve or revise the companion ADR and this single-environment plan. After approval, implementation can begin on an isolated branch with Bicep, GitHub Actions delivery workflow, and validation evidence. No Azure provisioning will occur without a separate, explicit environment-specific authorization after the implementation PR is reviewed. Redis/worker addition requires a separate plan update and approval.
