@@ -15,7 +15,9 @@ On 2026-11-24 the Product Owner opened the merged site on localhost and said it 
 ## Reference
 [`reference-landing-concept.png`](reference-landing-concept.png) is the Product Owner's target for the landing page. It is a **directional concept**, not an implementation asset or measured spec (see #55).
 
-What to keep from it:
+[`reference-about-concept.png`](reference-about-concept.png) is the matching About concept (added 2026-11-24). It reuses the landing hero and adds three bands: four "How Khondi is different" cards, a "From budget to a real trip plan" step row, a "Who it's for" row (flexible travelers, families, budget-conscious planners) and a mission band with a closing CTA. The New Orleans and budget-flow mockups from the ChatGPT conversation have not been supplied yet; until they are, use the SVG boards on branch `docs/khondi-ui-conversation-graphics` for structure and copy only.
+
+What to keep from the landing concept:
 - Teal brand mark and a sticky header: logo, nav, one filled primary CTA at the right.
 - Hero: eyebrow badge, large serif h1, short lead, primary and secondary CTA, full-bleed photo on the right fading into the page background.
 - "From budget to trip": a heading block plus three numbered step cards with icons and arrows between them.
@@ -34,6 +36,7 @@ The Designer decides each one and records it; where product copy is affected, Cl
 | CTA "Start Planning" | Approved CTAs: **Plan my trip** and **Explore a $3,000 New Orleans example** (#55) | Use the approved labels. |
 | Nav: Home, Trips, How It Works, About | Nav: Home, Example trip, How it works, About | Keep the approved nav. |
 | "Grounded itinerary logic ... AI builds realistic plans" and "real costs" | Prices are **sample estimates, not live fares or bookings**; no "verified" or "guaranteed" | Keep the sample-estimate labelling visible wherever a price appears. |
+| About concept: "Start Planning Your Trip", "See How It Works", "AI builds realistic plans", "real costs" | Same approved labels and sample-estimate rule as above | Use approved labels. Keep the "Who it's for" row only if the Product Manager approves the copy. |
 | Instagram, YouTube and LinkedIn icons | No such accounts exist | Omit them. |
 | Photos (Amalfi-style coast, Bourbon Street) | Assets must be licensed or original; AI imagery marked as illustration when confusion is likely | Propose an asset strategy. Do not ship the concept's images unless the rights are confirmed. |
 
