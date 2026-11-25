@@ -20,6 +20,7 @@ test.describe("about page", () => {
 
   test("shows About in header and footer and marks it current", async ({ page }) => {
     await page.goto("/about");
+    if ((page.viewportSize()?.width ?? 900) < 900) await page.getByRole("button", { name: "Menu" }).click();
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "About" })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "About" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current", "page");

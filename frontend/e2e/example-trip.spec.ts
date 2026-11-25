@@ -67,6 +67,7 @@ test.describe("example trip page", () => {
 
   test("lists Example trip second in header and footer and marks it current", async ({ page }) => {
     await page.goto(path);
+    if ((page.viewportSize()?.width ?? 900) < 900) await page.getByRole("button", { name: "Menu" }).click();
     for (const name of ["Main", "Footer"]) {
       const links = page.getByRole("navigation", { name }).getByRole("link");
       await expect(links).toHaveText(["Home", "Example trip", "About"]);
