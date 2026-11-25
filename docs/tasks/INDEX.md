@@ -16,7 +16,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0011](T0011-site-shell/) | Website site shell and test harness (#55, #60) | needs-claude-review | #61 (covered by T0010 signoff) | draft PR #78 | `06-codex-qa-followup.md` |
 | [T0012](T0012-about-page/) | About page (#59) | merged | this PR (delegated) | #79 (merged) | `04-claude-review-r1.md` |
 | [T0013](T0013-new-orleans-example/) | Illustrative $3,000 New Orleans trip (#58) | needs-claude-review (QA D1 fixed; delta review, QA re-run and Codex r2 pending) | this PR (delegated) | draft PR #81 | `08-claude-ci-fix.md` |
-| [T0014](T0014-budget-starter/) | Budget-first trip starter (#56) | needs-claude-review | #77 (delegated) | draft on `codex/T0014-budget-starter` | `03-codex-handoff.md` |
+| [T0014](T0014-budget-starter/) | Budget-first trip starter (#56) | Claude review r1 APPROVE_FOR_MERGE (no blocking findings); merge decision with orchestrator | #77 (delegated) | draft PR #85 | `04-claude-review-r1.md` |
 | [T0015](T0015-landing/) | Landing page (#57, #54) | spec signed off under delegation; waits for T0014 | this PR (delegated) | | `01-spec.md` |
 
 States: `awaiting-plan-approval`, `in-progress`, `needs-claude-review`, `needs-rework`, `ready-for-phil`, `blocked`, `merged`, `cancelled`.
