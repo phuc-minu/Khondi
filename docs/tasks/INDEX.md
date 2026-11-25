@@ -19,6 +19,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0014](T0014-budget-starter/) | Budget-first trip starter (#56) | spec signed off under delegation; waits for T0013 | this PR (delegated) | | `01-spec.md` |
 | [T0015](T0015-landing/) | Landing page (#57, #54) | spec signed off under delegation; waits for T0014 | this PR (delegated) | | `01-spec.md` |
 | [T0016](T0016-visual-design/) | Visual design for the public website (#55) | designer handoff received; Claude review done; awaiting Owner decisions D1–D3 | this PR (delegated) | | `03-claude-design-review.md` |
-| [T0017](T0017-design-shell/) | Design tokens and site shell (#55) | needs-claude-review | #83 (merged; delegated) | [Draft PR](https://github.com/phuc-minu/Khondi/pulls?q=is%3Apr+head%3Acodex%2FT0017-design-shell) | `03-codex-handoff.md` |
+| [T0017](T0017-design-shell/) | Design tokens and site shell (#55) | merged | #83 (delegated) | #86 | `03-codex-handoff.md` |
+| [T0018](T0018-example-restyle/) | New Orleans example restyle (#55, #58) | spec written | this PR (delegated) | | `01-spec.md` |
 
 States: `awaiting-plan-approval`, `in-progress`, `needs-claude-review`, `needs-rework`, `ready-for-phil`, `blocked`, `merged`, `cancelled`.
