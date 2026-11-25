@@ -18,7 +18,7 @@ export function TripAssumptions({ trip }: { trip: IllustrativeTrip }): React.Rea
     ["Getting there", "Flying, economy, round trip"],
   ];
   return (
-    <>
+    <div className={styles.card}>
       <dl className={styles.list}>
         {rows.map(([term, detail]) => (
           <div key={term} className={styles.row}>
@@ -27,12 +27,14 @@ export function TripAssumptions({ trip }: { trip: IllustrativeTrip }): React.Rea
           </div>
         ))}
       </dl>
-      <h3>Not included</h3>
-      <ul>
-        {trip.notIncluded.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </>
+      <div className={styles.exclusions}>
+        <h3>Not included</h3>
+        <ul>
+          {trip.notIncluded.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
