@@ -159,7 +159,7 @@ test.describe("example trip page", () => {
     if ((page.viewportSize()?.width ?? 900) < 900) await page.getByRole("button", { name: "Menu" }).click();
     for (const name of ["Main", "Footer"]) {
       const links = page.getByRole("navigation", { name }).getByRole("link");
-      await expect(links).toHaveText(["Home", "Example trip", "About"]);
+      await expect(links).toHaveText(["Home", "Example trip", "How it works", "About"]);
     }
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Example trip" })).toHaveAttribute("aria-current", "page");
   });
