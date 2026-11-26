@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import styles from "./page.module.css";
+import { LinkButton } from "../../components/LinkButton";
 import { StepList } from "../../components/StepList";
 
 export const metadata: Metadata = {
@@ -35,6 +36,10 @@ export default function AboutPage(): React.ReactElement {
         book travel. As live data sources are added, plans will show where their information came from and how current
         it is.
       </p>
+      <div className={styles.actions}>
+        <LinkButton href="/plan" variant="primary">Start planning</LinkButton>
+        <LinkButton href="/trips/new-orleans-example" variant="secondary">See example trip</LinkButton>
+      </div>
     </article>
   );
 }
