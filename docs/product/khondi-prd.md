@@ -63,4 +63,4 @@ Confirmed: Python backend, PostgreSQL, Next.js/React/TypeScript; OpenStreetMap/O
 - Decide detailed visual direction and preferred first-screen interaction after Senior Designer produces options.
 
 ## Approval and handoff
-**Gate 1:** Product Owner must approve this PRD, the architecture/ADR, implementation steps, and design artifacts before Codex development. **Gate 2:** After Claude code review, Claude Senior QA Playwright/test/eval evidence, and designer visual review, Product Owner reviews PR diff and expressly authorizes merge. No auto-merge or auto-deploy.
+**Gate 1:** Product Owner must approve this PRD, the architecture/ADR, implementation steps, and design artifacts before Codex development. **Gate 2 (since 2026-11-23):** After independent Claude code review, Claude Senior QA Playwright/test/eval evidence, and designer visual review, Claude merges under the [merge policy](../merge-policy.md); the Product Owner no longer reviews code ([D0001](../decisions/D0001-claude-merges-code.md)) but still approves hard-boundary items. No auto-merge or auto-deploy.

@@ -25,12 +25,12 @@ Read `AGENTS.md` and `docs/ai-workflow.md` before editing. **No application impl
 ## Testing and PR preparation
 - Add/update pytest unit and integration tests, agent replay/eval cases where affected, and Playwright E2E for user-facing flow.
 - Run applicable CI checks and present **actual** results; don't fabricate green builds. Capture Playwright traces/screenshots on failure.
-- Open **draft PR** linking GitHub issue and approved ADR, summarize changed files, tests, limitations and risks.
+- Open **draft PR** linking the GitHub issue with `Refs #N` (never `Closes`/`Fixes`/`Resolves`; the issue closes only after post-merge e2e passes on `main`) and the approved ADR, summarize changed files, tests, limitations and risks.
 - Request Claude architecture/security/code review. Address findings, rerun tests, and get re-review if changes were substantive.
 - Material design/scope/dependency changes require **Gate 1 reapproval**, not unilateral implementation.
-- **STOP at Gate 2:** Product Owner must see diff, Claude review, pytest/Playwright/eval evidence and expressly approve before anyone merges. Never auto-merge or deploy.
+- **Gate 2 is the Claude merge gate** ([docs/merge-policy.md](../../../docs/merge-policy.md)): Claude merges after its independent review and QA pass on the head SHA with all required checks green. Codex never merges, auto-merges or deploys. When Claude wrote the code, Codex performs the cross-check review.
 
 ## Handoff checklist
-Follow `docs/tasks/README.md` and the code quality rules (Q1–Q16) in `AGENTS.md`. Record each handoff as the next numbered file in `docs/tasks/<task-id>/` from `docs/tasks/_templates/` (`02-approval.md`, `03-codex-handoff.md`, then one `codex-rework` file per review round), keep the PR in draft, and set `state:needs-claude-review` when handing off. Never request Phil's review yourself; Claude does that once its verdict is `APPROVE_FOR_OWNER_REVIEW`.
+Follow `docs/tasks/README.md` and the code quality rules (Q1–Q16) in `AGENTS.md`. Record each handoff as the next numbered file in `docs/tasks/<task-id>/` from `docs/tasks/_templates/` (`02-approval.md`, `03-codex-handoff.md`, then one `codex-rework` file per review round), keep the PR in draft, and set `state:needs-claude-review` when handing off. Never request or assign Phil as a reviewer; he is not a code reviewer. Claude merges once the merge gate holds.
 
-Issue + ADR version + Gate 1 approval; concise change summary; test commands/results; Claude review/fixes; known risks; link to draft PR; explicit request for owner's code review.
+Issue + ADR version + Gate 1 approval; concise change summary; test commands/results; Claude review/fixes; known risks; link to draft PR; request for Claude review and QA.

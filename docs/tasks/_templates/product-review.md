@@ -26,7 +26,7 @@ One specific question or decision; state why it affects the user outcome, scope,
 
 ## Requested ChatGPT output
 - [ ] Clarify/adjust user stories or acceptance criteria
-- [ ] Decide recommendation or reprioritization for owner review
+- [ ] Decide recommendation or reprioritization for the owner's Gate 1 decision
 - [ ] Identify whether a new Gate 1 approval is needed
 - [ ] Update or propose relevant GitHub issues (never silently rewrite approved scope)
 

@@ -1,3 +1,5 @@
-# Phil reviews every change before merge (Gate 2). Draft PRs do not request review;
-# Claude marks a PR ready only after its verdict is APPROVE_FOR_OWNER_REVIEW.
-* @phuc-minu
+# No code owners. Since 2026-11-23 Claude reviews and merges code and Phil is
+# not a code reviewer (docs/decisions/D0001-claude-merges-code.md). Do not add
+# owners here: the Main ruleset requires code-owner review, so any entry would
+# make that person a required reviewer. See docs/merge-policy.md and
+# docs/branch-protection.md.
