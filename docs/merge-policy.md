@@ -6,7 +6,7 @@ Phil does not review code. He is never requested or assigned as a PR reviewer. C
 
 ## Gate 2: the Claude merge gate
 
-Gate 2 used to be the owner's code review. It is now this checklist. Claude merges a PR only when **every** item holds on the PR's **current head SHA**:
+Gate 2 used to be the owner's code review. It is now this checklist. Claude merges a PR only when **every** item holds on the PR's **current head SHA**, or on the reviewed SHA carried to the head under [Evidence-only commits](#evidence-only-commits):
 
 1. **Approved scope.** The task has an approved spec (Gate 1, or the epic #53 delegated sign-off), and the diff stays inside it. Nothing was added that the spec did not cover: no new dependency, provider, cost or product scope beyond what was approved.
 2. **Independent Claude code review** using the [`khondi-architect-reviewer`](../.claude/skills/khondi-architect-reviewer/SKILL.md) skill gives `APPROVE_FOR_MERGE` on this SHA, recorded in `NN-claude-review-rK.md`. The reviewing Claude session is not the session that wrote the code.
@@ -18,7 +18,23 @@ Gate 2 used to be the owner's code review. It is now this checklist. Claude merg
 8. **Nothing on the hard boundary** is in the diff unless Phil has explicitly approved it (see below), and that approval is linked.
 9. **The PR body uses `Refs #N`** for its issues and contains no `Closes`, `Fixes` or `Resolves` keyword (see [Closing issues](#closing-issues)).
 
-Any push after the verdicts voids them; review and QA run again on the new SHA. The single exception is the merge record: if the only change since the reviewed SHA is the new `NN-merge-record.md` file plus its `INDEX.md` line, the verdicts carry over, and the required checks must still be green on the new head. The merging Claude proves this with `git diff --name-only <reviewed-sha> <head-sha>`.
+### Evidence-only commits
+
+The review, QA and merge records are committed to the PR branch, so recording a verdict always creates a new head SHA. Those commits do not void the verdict. Any other push does: review and QA then run again on the new SHA.
+
+The verdicts on a reviewed SHA carry over to the current head only when every change between the two is an evidence file:
+
+- a **new** file in this task's folder, `docs/tasks/<task-id>/`, that is a Claude review (`NN-claude-review-rK.md`), designer review, Codex cross-check or merge record (`NN-merge-record.md`); and
+- this task's row in `docs/tasks/INDEX.md`.
+
+Nothing else may change: no code, tests, config, other docs, existing handoff files, or other tasks' rows. A merge or rebase from `main` changes code, so it voids the verdicts too. The merging Claude proves the carry-over before merging and records the output in the merge record:
+
+```bash
+git diff --name-status <reviewed-sha> <head-sha>    # only "A docs/tasks/<task-id>/NN-..." lines and "M docs/tasks/INDEX.md"
+git diff <reviewed-sha> <head-sha> -- docs/tasks/INDEX.md    # only this task's row changed
+```
+
+The required checks must still be green on the current head, because that is the commit that merges.
 
 ### How Claude merges
 

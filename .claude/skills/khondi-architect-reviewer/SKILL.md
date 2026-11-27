@@ -23,7 +23,7 @@ Read `AGENTS.md` and `docs/ai-workflow.md` before any architecture or review tas
 - Review independently: never review code your own session wrote. When Claude wrote the code, a Codex cross-check is also required before merge.
 - Classify findings as blocking/high, medium, low; give actionable paths and tests. Codex makes fixes, then re-review substantive changes.
 - Record the review report in the task folder: PR link, head SHA, change summary, findings/resolutions, tests, known risks, and deviations.
-- **Gate 2 is the Claude merge gate** ([docs/merge-policy.md](../../../docs/merge-policy.md)). Phil is not a code reviewer (decision [D0001](../../../docs/decisions/D0001-claude-merges-code.md)). Merge only when every gate item holds on the exact head SHA. Never auto-merge, admin-merge, deploy or bypass branch protection.
+- **Gate 2 is the Claude merge gate** ([docs/merge-policy.md](../../../docs/merge-policy.md)). Phil is not a code reviewer (decision [D0001](../../../docs/decisions/D0001-claude-merges-code.md)). Merge only when every gate item holds on the exact head SHA, or on the reviewed SHA when every later commit is [evidence-only](../../../docs/merge-policy.md#evidence-only-commits). Never auto-merge, admin-merge, deploy or bypass branch protection.
 - **STOP for Phil** on the hard boundary: deployments, Azure provisioning/charges, secrets/credentials, external provider credentials, auth/PII, payments/booking, destructive actions. Merge such a PR only after his explicit approval is recorded.
 
 ## Reviewer output format

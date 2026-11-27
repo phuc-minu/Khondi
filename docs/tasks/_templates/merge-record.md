@@ -10,7 +10,11 @@
 | Reviewed head SHA | <full sha> |
 | Issues | Refs #<n> |
 
-Written on the PR branch just before merging. The only change allowed after the reviewed SHA is this file and its `INDEX.md` line; the merging Claude checks that with `git diff --name-only <reviewed-sha> <head-sha>`.
+Written on the PR branch just before merging. After the reviewed SHA, only [evidence-only commits](../../merge-policy.md#evidence-only-commits) are allowed: new review, QA, designer, cross-check or merge-record files in this task's folder, and this task's `INDEX.md` row. Paste the output of `git diff --name-status <reviewed-sha> <head-sha>` below to prove it.
+
+```text
+<git diff --name-status output>
+```
 
 ## Merge gate (docs/merge-policy.md)
 | # | Item | Evidence | Holds |
