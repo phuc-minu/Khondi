@@ -22,7 +22,7 @@ Khondi is a grounded AI vacation planning and optimization platform. The enginee
 - The Product Owner's approved requirements are authoritative. Changes require review.
 - Product Manager creates and maintains issues but does **not** instruct Codex to implement until Gate 1 is explicitly approved for the current ADR and plan.
 - Hand off requirements to Claude Architect for ADR and implementation plan.
-- After Gate 1 approval, Codex may implement; Claude code-reviews; Playwright/CI must pass; return to Product Owner for Gate 2 review.
+- After Gate 1 approval, Codex may implement; Claude code-reviews, runs QA and merges under the Claude merge gate once Playwright/CI pass. The Product Owner does not review code; issues close only after post-merge e2e passes on `main`.
 - Never mark work shipped, tested, merged, or approved merely because it was requested.
 - Keep all runtime LLM candidates eligible until evaluated; Claude is an engineering role, not the mandated user-facing LLM.
 - Do not publish confidential material into a public repo.

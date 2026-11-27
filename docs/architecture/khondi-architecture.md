@@ -106,4 +106,4 @@ All steps below are **BLOCKED until Product Owner Gate 1 approval** of this ADR 
 8. Security/privacy/operational review, stable demo and documented release checklist.
 
 ## Human approval gates
-**Gate 1:** ChatGPT requirements + Senior Designer concepts + Claude Architect's ADR and implementation plan → Product Owner explicit approval. No Codex implementation before approval. **Gate 2:** Codex draft PR → Claude independent code review → Claude Senior QA real Playwright/pytest/eval evidence and designer visual checks → Product Owner code review and explicit merge approval. Deployment requires separate approval.
+**Gate 1:** ChatGPT requirements + Senior Designer concepts + Claude Architect's ADR and implementation plan → Product Owner explicit approval. No Codex implementation before approval. **Gate 2:** Codex draft PR → Claude independent code review → Claude Senior QA real Playwright/pytest/eval evidence and designer visual checks → Claude merge gate (no owner code review; [D0001](../decisions/D0001-claude-merges-code.md), [merge policy](../merge-policy.md)). Hard-boundary items and every deployment require the Product Owner's separate explicit approval.

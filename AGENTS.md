@@ -1,6 +1,6 @@
 # Khondi agent instructions
 
-This repository is governed by two mandatory human approval gates. Read [docs/ai-workflow.md](docs/ai-workflow.md) before planning, editing code, reviewing, or merging.
+This repository is governed by a human plan-approval gate (Gate 1), a Claude merge gate (Gate 2) and a hard boundary that only the Product Owner can open. Read [docs/ai-workflow.md](docs/ai-workflow.md) before planning, editing code, reviewing, or merging.
 
 ## Temporary owner-delegated website exception (2026-11-20)
 
@@ -12,32 +12,34 @@ The Product Owner expressly requested: **“remove my review for now and let Cla
 - **Hard boundary:** No authorization for unrelated backend or infrastructure work, deployments, Azure provisioning/charges, secrets/credentials, external provider credentials, authentication/PII handling, payment/booking, destructive actions, broad architecture changes, or materially expanded product scope. Those still need the owner's normal approvals, plus separate authorization for deployment/provisioning. If uncertain, stop and ask.
 - **Execution:** This is a recorded permission, not a running Claude/Codex job. The operator still needs to start agents through a supported integration; GitHub issue comments/labels do not auto-start sessions. Owner may revoke delegation at any time.
 
-Outside this listed website scope, the normal Gate 1 and Gate 2 rules below continue unchanged.
+Since 2026-11-23 the **Merge** rule above applies to the whole project, not only this epic: Claude reviews and merges every code PR under the [Claude merge gate](docs/merge-policy.md) and Phil is not a code reviewer ([D0001](docs/decisions/D0001-claude-merges-code.md)). Outside this listed website scope, Gate 1 below continues unchanged, and the **Hard boundary** above still applies everywhere.
 
 ## Roles
 - **ChatGPT — Product Manager:** [Product skill](.agents/skills/khondi-product-manager/SKILL.md). Owns product requirements, prioritization, acceptance criteria, and backlog.
-- **Claude — Architect and Code Reviewer:** [Claude skill](.claude/skills/khondi-architect-reviewer/SKILL.md). Owns technical ADR proposals and independent PR reviews.
+- **Claude — Architect and Code Reviewer:** [Claude skill](.claude/skills/khondi-architect-reviewer/SKILL.md). Owns technical ADR proposals, independent PR reviews and, under the [Claude merge gate](docs/merge-policy.md), the merge.
 - **Senior Designer — UI/UX:** [Designer skill](.agents/skills/khondi-senior-designer/SKILL.md). Creates responsive, accessible UI plans and uses actual OpenAI image-generation tools for visual concepts when available; designs require owner Gate 1 approval before implementation.
-- **Claude — Senior QA:** [QA skill](.claude/skills/khond-senior-qa/SKILL.md). Owns independent risk-based validation, Playwright E2E evidence, replay evals and QA report before owner Gate 2.
+- **Claude — Senior QA:** [QA skill](.claude/skills/khond-senior-qa/SKILL.md). Owns independent risk-based validation, Playwright E2E evidence, replay evals and the QA report on the exact head SHA before Claude merges (Gate 2).
 - **Codex — Senior Developer:** [Codex skill](.agents/skills/khondi-senior-developer/SKILL.md). Owns implementation **only after explicit human plan approval**, tests, and small draft PRs.
 - **Codex — DevOps Engineer:** [DevOps skill](.agents/skills/khondi-devops/SKILL.md). Plans and, only after Gate 1 approval, implements local Docker and Azure infrastructure through small IaC/CI PRs; Azure provisioning and deployment require separate explicit authorization.
-- **Human Product Owner:** Sole authority to approve plans and PR/merge decisions. Silence is never approval.
+- **Human Product Owner (Phil, `@phuc-minu`):** Sole authority to approve plans and specs (Gate 1) and everything on the hard boundary. Not a code reviewer: he is never requested or assigned on PRs ([D0001](docs/decisions/D0001-claude-merges-code.md)). Silence is never approval.
 
 ## Non-negotiable gates
 1. **Gate 1: APPROVAL REQUIRED BEFORE IMPLEMENTATION.** ChatGPT defines the issue/PRD; Claude proposes an ADR and implementation plan; the Product Owner reviews and explicitly approves or requests changes. No Codex implementation, feature branch changes, or production configuration changes may begin while awaiting Gate 1 approval. Governance-document proposals may be written on a review branch for review but must not be merged without explicit approval.
-2. **Gate 2: APPROVAL REQUIRED BEFORE MERGE.** After Codex implementation, Claude performs an independent code review, Codex resolves findings, Claude Senior QA verifies the changes with CI and Playwright, and UI changes receive designer fidelity/accessibility checks. The Product Owner then reviews the diff, Claude findings, and test evidence and expressly approves or rejects the PR. Do not merge or auto-merge without explicit authorization. Azure provisioning and every environment deployment additionally require specific human authorization; PR approval alone never authorizes resource creation or deployment.
+2. **Gate 2: CLAUDE MERGE GATE.** After Codex implementation, Claude performs an independent code review, Codex resolves findings, Claude Senior QA verifies the changes with CI and Playwright, and UI changes receive designer fidelity/accessibility checks; when Claude wrote the code, Codex cross-checks it. Claude merges only when every item of the [merge gate](docs/merge-policy.md#gate-2-the-claude-merge-gate) holds on the exact head SHA (verdicts carry over only across [evidence-only commits](docs/merge-policy.md#evidence-only-commits)): approved scope unchanged, review and QA passed, all required checks green, no blocking finding open, nothing on the hard boundary without the Product Owner's recorded approval. There is no owner code review. Never auto-merge or bypass branch protection.
+3. **Hard boundary: PRODUCT OWNER APPROVAL REQUIRED.** Deployments to any environment, Azure provisioning or charges, secrets and credentials, external provider credentials, authentication/PII handling, payments/booking and destructive actions each need the Product Owner's explicit approval. A merge never authorizes resource creation, deployment or a destructive action; each needs its own action-specific authorization when it is run.
 
 ## Handoff workflow
 Every task follows [docs/tasks/README.md](docs/tasks/README.md). In short:
 1. Claude writes `docs/tasks/<id>/01-spec.md` in a spec PR. Phil approves it by merging (Gate 1).
 2. Codex records the approval in `02-approval.md` (and stops if the spec PR is not merged), implements, writes `03-codex-handoff.md`, opens a **draft** PR and sets `state:needs-claude-review`.
-3. Claude reviews and runs QA, writing `NN-claude-review-rK.md`. On `CHANGES_REQUIRED` the label goes to `state:needs-rework` and Codex answers every finding by ID in `NN-codex-rework-rK.md`. At most three rounds, then `state:blocked` and Phil decides.
-4. Only when Claude's verdict is `APPROVE_FOR_OWNER_REVIEW` does Claude mark the PR ready, set `state:ready-for-phil`, assign Phil and request his review. Phil decides and merges (Gate 2).
+3. Claude reviews and runs QA, writing `NN-claude-review-rK.md`. On `CHANGES_REQUIRED` the label goes to `state:needs-rework` and Codex answers every finding by ID in `NN-codex-rework-rK.md`. At most two rounds, then `state:blocked` (see [merge-policy.md](docs/merge-policy.md#review-rounds)).
+4. When review is `APPROVE_FOR_MERGE`, QA passes and the rest of the merge gate holds, Claude writes `NN-merge-record.md`, marks the PR ready, sets `state:ready-to-merge` and squash-merges pinned to the head SHA (Gate 2). Phil is not asked to review.
+5. PRs reference issues with `Refs #N`, never `Closes`/`Fixes`/`Resolves`. Claude closes each issue only after the post-merge `e2e` job on `main` passes, linking that run.
 
 Every handoff is a numbered, dated, append-only Markdown file in the task folder, committed on the task branch, using the templates in [docs/tasks/_templates](docs/tasks/_templates). Never edit an earlier handoff file. Keep [docs/tasks/INDEX.md](docs/tasks/INDEX.md) current in the same commit.
 
 ## Product Manager routing
-When Claude or Codex identifies a genuine product-scope, acceptance-criteria or priority question, follow [the ChatGPT Product Manager handoff](docs/tasks/README.md#chatgpt-product-manager-handoff-optional-blocking-when-requested). Use a source-linked issue comment or a new append-only `NN-product-review.md`, label the **issue** `state:needs-product-review`, and have the owner or current operator initiate ChatGPT review manually. ChatGPT's answer is advisory, not a Gate 1 or Gate 2 approval. Codex pauses affected work until Claude's revised plan receives the necessary owner approval. Preserve the implementation PR's existing state and never treat a label as agent execution.
+When Claude or Codex identifies a genuine product-scope, acceptance-criteria or priority question, follow [the ChatGPT Product Manager handoff](docs/tasks/README.md#chatgpt-product-manager-handoff-optional-blocking-when-requested). Use a source-linked issue comment or a new append-only `NN-product-review.md`, label the **issue** `state:needs-product-review`, and have the owner or current operator initiate ChatGPT review manually. ChatGPT's answer is advisory, not a Gate 1 approval or a merge decision. Codex pauses affected work until Claude's revised plan receives the necessary owner approval. Preserve the implementation PR's existing state and never treat a label as agent execution.
 
 ## Code quality rules
 These apply to every line Codex writes and are what Claude reviews against. Cite the rule ID when raising or answering a finding. A rule can only be broken with a written reason in the handoff file, and Claude decides whether the reason holds.

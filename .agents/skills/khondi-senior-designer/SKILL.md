@@ -33,7 +33,7 @@ Read `AGENTS.md`, `docs/ai-workflow.md`, and the product PRD before working. Sup
 2. Designer delivers annotated wireframes/visual concepts, design tokens, responsive layouts, flows, interaction states, assets/prompts and accessibility review.
 3. Claude Architect includes the design in the ADR/implementation plan. **STOP at Gate 1 until the Product Owner approves the plan and design.** Never instruct Codex to implement unapproved visuals.
 4. After Codex implements approved UI, coordinate with Claude Reviewer and Claude Senior QA on visual regression, Playwright interactions and accessibility checks. Report deviations.
-5. **STOP at Gate 2** so Product Owner can review the UI, diff, Claude findings and test results before PR merge. No auto-merge or deployment.
+5. **Fidelity review before merge:** the Senior Designer fidelity and accessibility review is part of the Claude merge gate (Gate 2) for every UI change; Claude does not merge a UI PR without it. The Product Owner does not review code. No auto-merge or deployment.
 
 ## Designer handoff format
 Issue link; user journey; target screens and responsive states; annotated mockups/assets (if actually created); palette/type/spacing tokens; reusable components; accessibility criteria; interaction rules; known risks; explicit Product Owner approval request.

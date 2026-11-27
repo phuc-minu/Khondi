@@ -6,7 +6,7 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | --- | --- | --- | --- | --- | --- |
 | [T0001](T0001-handoff-workflow/) | Claude–Codex handoff workflow | merged | (requested directly by Phil) | #48 | `01-spec.md` |
 | [T0002](T0002-local-infra-azure-parity/) | Local dev infrastructure that can be duplicated in Azure | merged | #49 | (T0003–T0009) | `01-spec.md` |
-| [T0003](T0003-service-skeletons-config/) | Service skeletons and configuration | ready-for-phil | #50 (covered by T0002 approval) | #52 | `22-claude-review-r11.md` |
+| [T0003](T0003-service-skeletons-config/) | Service skeletons and configuration | merged | #50 (covered by T0002 approval) | #52 | `22-claude-review-r11.md` |
 | [T0004](T0004-compose-stack/) | Compose stack and networking | merged | #63 (merged; design in T0002 v1) | #64 | `06-codex-review-r2.md` |
 | [T0005](T0005-postgres-migrations/) | PostgreSQL, migrations and recovery | merged | #65 (merged; design in T0002 v1) | #66, carried to main by #74 | `03-claude-devops-handoff.md` |
 | [T0006](T0006-redis-worker/) | Redis and worker | merged | #67 (merged; design in T0002 v1) | #68 | `05-codex-review-r2.md` |
@@ -22,4 +22,4 @@ One line per task. Updated in the same commit as each handoff file. The PR label
 | [T0017](T0017-design-shell/) | Design tokens and site shell (#55) | merged | #83 (delegated) | #86 | `03-codex-handoff.md` |
 | [T0018](T0018-example-restyle/) | New Orleans example restyle (#55, #58) | drafted for Claude review | [#87](https://github.com/phuc-minu/Khondi/pull/87) (delegated) | [Draft PR](https://github.com/phuc-minu/Khondi/pulls?q=is%3Apr+head%3Acodex%2FT0018-example-restyle) | `03-codex-handoff.md` |
 
-States: `awaiting-plan-approval`, `in-progress`, `needs-claude-review`, `needs-rework`, `ready-for-phil`, `blocked`, `merged`, `cancelled`.
+States: `awaiting-plan-approval`, `in-progress`, `needs-claude-review`, `needs-rework`, `ready-to-merge`, `needs-owner-approval`, `blocked`, `merged`, `cancelled`. An issue is closed only after its PR merged and the post-merge `e2e` job on `main` passed. Older task folders may say `ready-for-phil`; that state was retired on 2026-11-23 ([D0001](../decisions/D0001-claude-merges-code.md)).
